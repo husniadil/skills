@@ -1,6 +1,6 @@
 {
   "name": "husniadil-skills",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Agent skills by Husni Adil Makmur: per-model prompting guides, /goal conditions, video analysis, audio and YouTube transcripts, and workflow commands for gates, audits, fixes, commits and plans.",
   "license": "MIT",
   "author": "Husni Adil Makmur (https://github.com/husniadil)",
@@ -25,10 +25,10 @@
   ],
   "pi": {
     "skills": [
-      "./skills"
+      "./plugins/husniadil-skills/skills"
     ],
     "prompts": [
-      "./commands"
+      "./plugins/husniadil-skills/commands"
     ]
   }
 }

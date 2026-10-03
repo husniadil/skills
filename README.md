@@ -25,9 +25,9 @@ Claude Code plugin marketplace:
 In Claude Code a plugin's skills and commands are invoked with the plugin's name in
 front, such as `/husniadil-skills:gate`.
 
-Manual: copy any folder under `skills/` into your agent's skills directory
+Manual: copy any folder under `plugins/husniadil-skills/skills/` into your agent's skills directory
 (`~/.claude/skills/`, `.claude/skills/`, `.agents/skills/`, or the equivalent), and any
-file under `commands/` into `~/.claude/commands/`. Copy with links followed
+file under `plugins/husniadil-skills/commands/` into `~/.claude/commands/`. Copy with links followed
 (`cp -RL`), since a command's `SKILL.md` is a link into `commands/`.
 
 ## Skills
@@ -45,7 +45,7 @@ not install anything itself.
 
 ### model-prompting-guides
 
-Each reference in `skills/model-prompting-guides/references/` has the same shape:
+Each reference in `plugins/husniadil-skills/skills/model-prompting-guides/references/` has the same shape:
 
 1. Always include
 2. Include when applicable
@@ -61,7 +61,7 @@ older files stay for agents still running that model.
 
 ## Commands
 
-Each command is one file in `commands/`, and `skills/<name>/SKILL.md` links to it, so
+Each command is one file in `plugins/husniadil-skills/commands/`, and `skills/<name>/SKILL.md` beside it links to it, so
 the same text is a command where an agent has commands and a skill where it has only
 skills. Every one runs only when asked: `disable-model-invocation` for Claude Code and
 pi, `allow_implicit_invocation: false` in `agents/openai.yaml` for Codex.
@@ -87,12 +87,12 @@ pi, `allow_implicit_invocation: false` in `agents/openai.yaml` for Codex.
 For a new model version, add a new reference from the provider's official prompting page
 and link it in `SKILL.md`. For an existing one, edit in place and bump the
 `Last cross-checked` date in its Provenance section. Keep the 4 metadata files in sync:
-`plugin.json`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`,
-`package.json`.
+`plugins/husniadil-skills/.claude-plugin/plugin.json`, `plugins/husniadil-skills/.codex-plugin/plugin.json`,
+`.claude-plugin/marketplace.json`, `package.json`.
 
 ## License
 
-MIT, except `skills/analyzing-video`, which is modified from
+MIT, except `plugins/husniadil-skills/skills/analyzing-video`, which is modified from
 [bsisduck/video-analyzer-skill](https://github.com/bsisduck/video-analyzer-skill) and
 stays under GPL-3.0 (its own `LICENSE`). The changes: transcription goes through the
 `transcribe-audio` skill, and its prerequisites are checked before it runs.

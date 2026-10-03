@@ -8,7 +8,7 @@
       "name": "husniadil-skills",
       "source": {
         "source": "local",
-        "path": "./"
+        "path": "./plugins/husniadil-skills"
       },
       "policy": {
         "installation": "AVAILABLE",
