@@ -1,1 +1,1 @@
-../../commands/commit-all.md
+../../prompts/commit-all.md

@@ -1,1 +1,1 @@
-../../commands/review-plan.md
+../../prompts/review-plan.md

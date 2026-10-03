@@ -1,1 +1,1 @@
-../../commands/pre-compact.md
+../../prompts/pre-compact.md
