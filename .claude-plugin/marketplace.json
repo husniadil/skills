@@ -1,0 +1,31 @@
+{
+  "name": "husniadil-skills",
+  "owner": {
+    "name": "Husni Adil Makmur",
+    "url": "https://github.com/husniadil"
+  },
+  "description": "Agent skills by Husni Adil Makmur: per-model prompting guides for Claude Fable, Opus, Sonnet, Haiku and GPT Sol, Terra, Luna, Astra.",
+  "plugins": [
+    {
+      "name": "husniadil-skills",
+      "source": "./",
+      "description": "Agent skills by Husni Adil Makmur: per-model prompting guides for Claude Fable, Opus, Sonnet, Haiku and GPT Sol, Terra, Luna, Astra.",
+      "author": {
+        "name": "Husni Adil Makmur",
+        "url": "https://github.com/husniadil"
+      },
+      "repository": "https://github.com/husniadil/skills",
+      "license": "MIT",
+      "keywords": [
+        "prompting",
+        "prompt-engineering",
+        "subagents",
+        "claude",
+        "gpt",
+        "codex",
+        "agents"
+      ],
+      "category": "productivity"
+    }
+  ]
+}

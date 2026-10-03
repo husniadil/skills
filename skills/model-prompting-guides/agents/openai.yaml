@@ -1,0 +1,4 @@
+interface:
+  display_name: "Model Prompting Guides"
+  short_description: "Prompting rules per Claude and GPT model"
+  default_prompt: "Use $model-prompting-guides to write the delegation prompt for a subagent running Sol."
