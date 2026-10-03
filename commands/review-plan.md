@@ -1,6 +1,8 @@
 ---
+name: review-plan
 description: Review a plan file for inconsistencies and gaps, then fix it in place
 argument-hint: [path]
+disable-model-invocation: true
 ---
 
 Plan file: `$ARGUMENTS`. When empty, use the plan this conversation has been working on; if more than one candidate exists, name them and ask which one before reading.

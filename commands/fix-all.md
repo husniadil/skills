@@ -1,6 +1,8 @@
 ---
+name: fix-all
 description: Fix the findings from the last review in this conversation, one at a time, each verified before moving on
 argument-hint: [F1 F3 ... | all]
+disable-model-invocation: true
 ---
 
 Scope: `$ARGUMENTS`. Empty or `all` means every finding from the most recent review in this conversation (`/audit`, `/code-review`, or any report that numbered its findings). A list of codes means only those.

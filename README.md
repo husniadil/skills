@@ -27,7 +27,8 @@ front, such as `/husniadil-skills:gate`.
 
 Manual: copy any folder under `skills/` into your agent's skills directory
 (`~/.claude/skills/`, `.claude/skills/`, `.agents/skills/`, or the equivalent), and any
-file under `commands/` into `~/.claude/commands/`.
+file under `commands/` into `~/.claude/commands/`. Copy with links followed
+(`cp -RL`), since a command's `SKILL.md` is a link into `commands/`.
 
 ## Skills
 
@@ -59,6 +60,17 @@ named in full (`claude-opus-5.md`, `gpt-6-astra.md`). A new version gets a new f
 older files stay for agents still running that model.
 
 ## Commands
+
+Each command is one file in `commands/`, and `skills/<name>/SKILL.md` links to it, so
+the same text is a command where an agent has commands and a skill where it has only
+skills. Every one runs only when asked: `disable-model-invocation` for Claude Code and
+pi, `allow_implicit_invocation: false` in `agents/openai.yaml` for Codex.
+
+| Agent | How to run `gate` |
+|---|---|
+| Claude Code (plugin) | `/husniadil-skills:gate` |
+| pi | `/gate` (prompt template) or `/skill:gate` |
+| Codex | `$gate` |
 
 | Command | What it does |
 |---|---|

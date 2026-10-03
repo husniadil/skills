@@ -1,6 +1,8 @@
 ---
+name: audit
 description: Review the current diff, the whole codebase, or its architecture for bugs and gaps, with every finding adversarially verified
 argument-hint: current | codebase | design
+disable-model-invocation: true
 ---
 
 Audit target: `$ARGUMENTS` (default `current` when empty).

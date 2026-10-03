@@ -1,0 +1,5 @@
+interface:
+  display_name: "Gate"
+  short_description: "Find and run this project's quality gate (format, lint,..."
+policy:
+  allow_implicit_invocation: false

@@ -1,5 +1,7 @@
 ---
+name: pre-compact
 description: Before /compact, save what would be lost and write a re-orientation prompt to paste after compaction
+disable-model-invocation: true
 ---
 
 The conversation is about to be compacted. Two jobs, in order.

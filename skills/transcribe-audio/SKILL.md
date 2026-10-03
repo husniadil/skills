@@ -11,6 +11,9 @@ One script does the whole job:
 ${CLAUDE_SKILL_DIR}/scripts/transcribe.sh <file|url> [options]
 ```
 
+`${CLAUDE_SKILL_DIR}` is this skill's own directory. Claude Code fills it in. In
+another agent, use the directory this SKILL.md was loaded from.
+
 ## Options
 
 | Option | Meaning |

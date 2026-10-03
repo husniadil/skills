@@ -1,0 +1,5 @@
+interface:
+  display_name: "Fix All"
+  short_description: "Fix the findings from the last review in this conversation,..."
+policy:
+  allow_implicit_invocation: false

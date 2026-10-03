@@ -1,6 +1,8 @@
 ---
+name: gate
 description: Find and run this project's quality gate (format, lint, typecheck, tests) and show the real output
 argument-hint: [subset, e.g. lint | test <filter>]
+disable-model-invocation: true
 ---
 
 Run the project's gate. Argument `$ARGUMENTS` narrows it (a step name, or a test filter); empty means the full gate.

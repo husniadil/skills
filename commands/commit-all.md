@@ -1,5 +1,7 @@
 ---
+name: commit-all
 description: Commit everything in the working tree that belongs to this session's work, staged by path, in coherent units
+disable-model-invocation: true
 ---
 
 Commit the work in the tree. Never `git add -A`, `git add .`, or `git commit -a`; stage by explicit path so every file in the commit was looked at.

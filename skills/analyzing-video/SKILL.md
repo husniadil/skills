@@ -50,6 +50,8 @@ Convert user phrasing to script parameters:
 - "first 15 seconds" → start_time=`0` end_time=`15`
 - "last 30 seconds" → calculate: start_time=`duration-30`
 
+`${CLAUDE_SKILL_DIR}` in the commands here is this skill's own directory. Claude Code fills it in. In another agent, use the directory this SKILL.md was loaded from.
+
 Pass overrides to scripts:
 ```bash
 bash ${CLAUDE_SKILL_DIR}/scripts/video-info.sh "<video_path>" [fps_override] [start_time] [end_time]
