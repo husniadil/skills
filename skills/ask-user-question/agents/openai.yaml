@@ -1,0 +1,5 @@
+interface:
+  display_name: "Ask User Question"
+  short_description: "Ask the user a question through the AskUserQuestion tool,..."
+policy:
+  allow_implicit_invocation: false

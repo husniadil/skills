@@ -1,0 +1,5 @@
+interface:
+  display_name: "Pre-compact"
+  short_description: "Before /compact, save what would be lost and write a..."
+policy:
+  allow_implicit_invocation: false

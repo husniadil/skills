@@ -1,0 +1,5 @@
+interface:
+  display_name: "Commit All"
+  short_description: "Commit everything in the working tree that belongs to this..."
+policy:
+  allow_implicit_invocation: false
