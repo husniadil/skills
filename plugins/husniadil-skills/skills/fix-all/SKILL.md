@@ -1,1 +1,1 @@
-../../commands/fix-all.md
+../../prompts/fix-all.md

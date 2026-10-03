@@ -27,8 +27,8 @@ front, such as `/husniadil-skills:gate`.
 
 Manual: copy any folder under `plugins/husniadil-skills/skills/` into your agent's skills directory
 (`~/.claude/skills/`, `.claude/skills/`, `.agents/skills/`, or the equivalent), and any
-file under `plugins/husniadil-skills/commands/` into `~/.claude/commands/`. Copy with links followed
-(`cp -RL`), since a command's `SKILL.md` is a link into `commands/`.
+file under `plugins/husniadil-skills/prompts/` into `~/.claude/commands/`. Copy with links followed
+(`cp -RL`), since a command's `SKILL.md` is a link into `prompts/`.
 
 ## Skills
 
@@ -61,10 +61,12 @@ older files stay for agents still running that model.
 
 ## Commands
 
-Each command is one file in `plugins/husniadil-skills/commands/`, and `skills/<name>/SKILL.md` beside it links to it, so
-the same text is a command where an agent has commands and a skill where it has only
-skills. Every one runs only when asked: `disable-model-invocation` for Claude Code and
-pi, `allow_implicit_invocation: false` in `agents/openai.yaml` for Codex.
+Each command is one file in `plugins/husniadil-skills/prompts/`, and `skills/<name>/SKILL.md` beside it links to it.
+pi reads `prompts/` as prompt templates, and Claude Code and Codex read the skill. The
+folder is not `commands/` because Claude Code would then list each one twice, once as
+a command and once as the skill. Every one runs only when asked:
+`disable-model-invocation` for Claude Code and pi, `allow_implicit_invocation: false` in
+`agents/openai.yaml` for Codex.
 
 | Agent | How to run `gate` |
 |---|---|

@@ -1,1 +1,1 @@
-../../commands/gate.md
+../../prompts/gate.md

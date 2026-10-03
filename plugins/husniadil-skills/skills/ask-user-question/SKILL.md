@@ -1,1 +1,1 @@
-../../commands/ask-user-question.md
+../../prompts/ask-user-question.md

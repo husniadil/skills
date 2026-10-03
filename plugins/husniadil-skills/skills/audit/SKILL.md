@@ -1,1 +1,1 @@
-../../commands/audit.md
+../../prompts/audit.md
