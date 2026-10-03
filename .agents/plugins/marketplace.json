@@ -1,0 +1,20 @@
+{
+  "name": "husniadil-skills",
+  "interface": {
+    "displayName": "Husni Adil Makmur skills"
+  },
+  "plugins": [
+    {
+      "name": "husniadil-skills",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
