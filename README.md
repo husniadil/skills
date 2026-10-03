@@ -87,6 +87,21 @@ and link it in `SKILL.md`. For an existing one, edit in place and bump the
 `plugins/husniadil-skills/.claude-plugin/plugin.json`, `plugins/husniadil-skills/.codex-plugin/plugin.json`,
 `.claude-plugin/marketplace.json`, `package.json`.
 
+## Checking the calendar plugin
+
+The calendar plugin's server runs on husniadil.com, outside this repository, so
+nothing here notices when the two drift apart. Run this after changing the plugin
+or the site's MCP server:
+
+```text
+python3 scripts/check-calendar-contract.py
+```
+
+It checks that the mod connects to a server its manifest lists, that the server at
+the manifest's URL introduces itself by the plugin's name, and that it still offers
+every tool the mod calls. `--offline` runs the first check alone. The mod's own tests
+run with `claude plugin test ./plugins/indonesian-holiday-calendar`.
+
 ## License
 
 MIT, except `plugins/husniadil-skills/skills/analyzing-video`, which is modified from
