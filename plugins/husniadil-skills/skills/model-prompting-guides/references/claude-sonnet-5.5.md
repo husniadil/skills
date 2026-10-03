@@ -9,13 +9,14 @@ guide adds or changes. For the Sonnet 5 blocks that guide does not revisit (lite
 code review recall, design direction), see [claude-sonnet-5.md](claude-sonnet-5.md). What
 Anthropic's pages say changed from Sonnet 5, where this file wins over that one:
 
-- Thinking cannot be disabled. `thinking: {"type": "disabled"}` returns a 400 error, and
-  `between_tools` is the lowest setting.
+- `thinking: {"type": "disabled"}` returns a 400 error. To turn off up-front thinking,
+  send `between_tools`, the lowest setting, which is accepted at `high` effort or below.
 - A prompt asking the model to think less does not reliably reduce its thinking, so the
   Sonnet 5 block for steering thinking down is not a lever here. Lower effort instead.
 - Effort levels are recalibrated, so a Sonnet 5 setting does not carry over.
 - Forced tool use returns a 400 error, so the prompt is the way to get a tool call.
-- Notes between tool calls come back as `thinking` blocks rather than `text`.
+- Notes longer than a sentence or two between tool calls come back as progress-update
+  `thinking` blocks. Shorter remarks stay `text`.
 
 ## Always include
 
@@ -287,7 +288,7 @@ Return:
 
 ## Provenance
 
-Last cross-checked: 2026-10-03. Sourced from Anthropic's official documentation, all read on
+Last cross-checked: 2026-10-04. Sourced from Anthropic's official documentation, all read on
 2026-10-03:
 
 - Prompting Claude Sonnet 5.5:

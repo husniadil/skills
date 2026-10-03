@@ -23,8 +23,8 @@ What OpenAI does say about GPT-6.1 Sol:
 
 What changed from GPT-6 Sol:
 
-- `none` and `minimal` reasoning efforts are not supported. A request at `none` moves to
-  `low`.
+- `none` is not supported, where GPT-6 Sol accepts it, and OpenAI says to use `low`
+  instead. `minimal` is not supported either, and GPT-6 Sol did not list it.
 - Chat Completions takes requests without tools only. GPT-6 Sol allowed function calling
   there at `none`. Tool calling needs the Responses API.
 - It supports the Responses API's Multi-agent beta, which GPT-6 Sol is not listed for.
@@ -228,8 +228,8 @@ Return:
 
 ## Failure-mode adjustments
 
-- Request at `none` or `minimal` carried over from GPT-6 Sol: start at `low` and compare on
-  representative tasks.
+- A request at `none` carried over from GPT-6 Sol, or at `minimal` from an older model:
+  start at `low` and compare on representative tasks.
 - Function calls through Chat Completions: move the request to the Responses API.
 - Asks before starting, or stops at a plan: add the autonomy blocks above, and define done
   as a finished result.
@@ -242,7 +242,7 @@ Return:
 
 ## Provenance
 
-Last cross-checked: 2026-10-03. OpenAI publishes no prompting guidance specific to GPT-6.1
+Last cross-checked: 2026-10-04. OpenAI publishes no prompting guidance specific to GPT-6.1
 Sol. The prompt blocks come from OpenAI's GPT-6 family guidance, which it wrote from
 behavior observed with GPT-6 Astra and offers as a starting point for the whole family,
 and from the Multi-agent guide. Blocks are condensed from the official prompts. Sources,
