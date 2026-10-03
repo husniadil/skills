@@ -1,18 +1,25 @@
-# husniadil-skills
+# husniadil
 
-Agent skills and commands for Claude Code, Codex, and other skill-aware agents.
+Claude plugins by Husni Adil Makmur, in one marketplace named `husniadil`:
+
+- **husniadil-skills**: skills and workflow commands for Claude Code, Codex, and other
+  skill-aware agents. The rest of this page is about it.
+- **indonesian-holiday-calendar**: Indonesian public holidays and cuti bersama as calendar
+  tools, and the next holiday above the prompt in Claude Code. See
+  [its README](plugins/indonesian-holiday-calendar/README.md).
 
 ## Install
 
 claude.ai or the Claude desktop app: **Customize > Plugins > Add > Add marketplace**,
-then `husniadil/skills`. The plugin is saved to your account, so chat, Cowork and every
-Claude Code session signed in to the same account get it.
+then `husniadil/skills`, and add the plugins you want. A plugin is saved to your account,
+so chat, Cowork and every Claude Code session signed in to the same account get it.
 
 Claude Code plugin marketplace:
 
 ```text
 /plugin marketplace add husniadil/skills
-/plugin install husniadil-skills@husniadil-skills
+/plugin install husniadil-skills@husniadil
+/plugin install indonesian-holiday-calendar@husniadil
 ```
 
 In Claude Code a plugin's skills and commands are invoked with the plugin's name in
