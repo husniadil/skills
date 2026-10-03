@@ -1,8 +1,8 @@
 {
   "name": "husniadil-skills",
   "displayName": "Husni Adil Makmur Skills",
-  "version": "0.1.0",
-  "description": "Agent skills by Husni Adil Makmur: per-model prompting guides for Claude Fable, Opus, Sonnet, Haiku and GPT Sol, Terra, Luna, Astra.",
+  "version": "0.2.0",
+  "description": "Agent skills by Husni Adil Makmur: per-model prompting guides, /goal conditions, video analysis, audio and YouTube transcripts, and workflow commands for gates, audits, fixes, commits and plans.",
   "author": {
     "name": "Husni Adil Makmur",
     "url": "https://github.com/husniadil"
@@ -16,6 +16,11 @@
     "claude",
     "gpt",
     "codex",
-    "agents"
+    "agents",
+    "video",
+    "transcription",
+    "youtube",
+    "workflow",
+    "code-review"
   ]
 }
