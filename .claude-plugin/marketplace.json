@@ -1,10 +1,10 @@
 {
-  "name": "husniadil-skills",
+  "name": "husniadil",
   "owner": {
     "name": "Husni Adil Makmur",
     "url": "https://github.com/husniadil"
   },
-  "description": "Agent skills by Husni Adil Makmur: per-model prompting guides, /goal conditions, video analysis, audio and YouTube transcripts, and workflow commands for gates, audits, fixes, commits and plans.",
+  "description": "Claude plugins by Husni Adil Makmur: personal skills and workflow commands, and the Indonesian holiday calendar.",
   "plugins": [
     {
       "name": "husniadil-skills",
@@ -29,6 +29,25 @@
         "youtube",
         "workflow",
         "code-review"
+      ],
+      "category": "productivity"
+    },
+    {
+      "name": "indonesian-holiday-calendar",
+      "source": "./plugins/indonesian-holiday-calendar",
+      "description": "Indonesian public holidays and cuti bersama: calendar tools for Claude, and the next holiday above the prompt in Claude Code.",
+      "author": {
+        "name": "Husni Adil Makmur",
+        "url": "https://husniadil.com"
+      },
+      "homepage": "https://husniadil.com/calendar/mcp-server",
+      "license": "MIT",
+      "keywords": [
+        "indonesia",
+        "holidays",
+        "calendar",
+        "cuti-bersama",
+        "libur"
       ],
       "category": "productivity"
     }
