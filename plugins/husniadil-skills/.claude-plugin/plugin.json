@@ -1,7 +1,7 @@
 {
   "name": "husniadil-skills",
   "displayName": "Husni Adil Makmur Skills",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Agent skills by Husni Adil Makmur: per-model prompting guides, /goal conditions, video analysis, audio and YouTube transcripts, and workflow commands for gates, audits, fixes, commits and plans.",
   "author": {
     "name": "Husni Adil Makmur",

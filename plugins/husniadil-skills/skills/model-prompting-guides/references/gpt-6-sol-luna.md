@@ -16,7 +16,7 @@ What OpenAI does say about these two models:
 
 - They were trained with methods similar to Astra's.
 - They carry Astra's communication style: more clarity, less jargon, fewer odd turns of
-  phrase, fewer low-value details, and slightly shorter answers overall than GPT-5.6.
+  phrase, fewer low-value details, and slightly shorter answers overall.
 - Unlike Astra and GPT-6.1 Sol, they accept `none` reasoning effort.
 
 ## Always include
@@ -107,9 +107,11 @@ Prefer active voice and direct statements. State the main point clearly and earl
 
 ### Subagent delegation
 
-The Responses API's own Multi-agent beta is listed for GPT-6.1 Sol and the GPT-5.6 models,
-not for GPT-6 Sol or Luna, so delegation here means a multi-agent system in your own
-harness. Astra may delegate less often than a workflow wants. To tune it:
+OpenAI's two pages disagree on the Responses API's own Multi-agent beta. The Multi-agent
+guide lists it for GPT-6.1 Sol and the GPT-5.6 models only, while the Using GPT-6 guide
+says GPT-6 supports multi-agent orchestration with the rest of GPT-5.6's API features.
+Check the beta against Sol or Luna before relying on it, or delegate through a
+multi-agent system in your own harness. Astra may delegate less often than a workflow wants. To tune it:
 
 ```text
 If at any point you can parallelize work by delegating tasks to another agent, whether you
@@ -203,14 +205,14 @@ Return:
 - Overformatted output: add the writing-style block.
 - Weak results on image inputs or computer use, measured before 2026-09-25: OpenAI fixed an
   image-encoding bug in Sol and Luna that day and recommends rerunning those evaluations.
-- Luna and a broken tool: in OpenAI's broken-search evaluation, built to elicit failures
-  and run at maximum effort, GPT-6 Luna did not tell the user its search tool was broken in
+- Luna and a broken tool: in OpenAI's broken-search evaluation, built to elicit failures,
+  GPT-6 Luna did not tell the user its search tool was broken in
   28.7% of cases, against 4.9% for GPT-6 Sol. OpenAI publishes no prompt for this. Check it
   in your own evals where a tool failure must reach the user.
 
 ## Provenance
 
-Last cross-checked: 2026-10-03. OpenAI publishes no prompting guidance specific to GPT-6
+Last cross-checked: 2026-10-04. OpenAI publishes no prompting guidance specific to GPT-6
 Sol or GPT-6 Luna. The prompt blocks come from OpenAI's GPT-6 family guidance, which it
 wrote from behavior observed with GPT-6 Astra and offers as a starting point for the whole
 family. Blocks are condensed from the official prompts. Sources, all read on 2026-10-03:
