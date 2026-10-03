@@ -22,13 +22,11 @@ Claude Code plugin marketplace:
 /plugin install indonesian-holiday-calendar@husniadil
 ```
 
-In Claude Code a plugin's skills and commands are invoked with the plugin's name in
-front, such as `/husniadil-skills:gate`.
+In Claude Code a plugin's skills are invoked with the plugin's name in front, such as
+`/husniadil-skills:gate`.
 
-Manual: copy any folder under `plugins/husniadil-skills/skills/` into your agent's skills directory
-(`~/.claude/skills/`, `.claude/skills/`, `.agents/skills/`, or the equivalent), and any
-file under `plugins/husniadil-skills/prompts/` into `~/.claude/commands/`. Copy with links followed
-(`cp -RL`), since a command's `SKILL.md` is a link into `prompts/`.
+Manual: copy any folder under `plugins/husniadil-skills/skills/` into your agent's skills
+directory (`~/.claude/skills/`, `.claude/skills/`, `.agents/skills/`, or the equivalent).
 
 ## Skills
 
@@ -59,22 +57,19 @@ The guides say how to prompt a model, not which model to pick. One file per mode
 named in full (`claude-opus-5.md`, `gpt-6-astra.md`). A new version gets a new file, and
 older files stay for agents still running that model.
 
-## Commands
+## Workflow skills
 
-Each command is one file in `plugins/husniadil-skills/prompts/`, and `skills/<name>/SKILL.md` beside it links to it.
-pi reads `prompts/` as prompt templates, and Claude Code and Codex read the skill. The
-folder is not `commands/` because Claude Code would then list each one twice, once as
-a command and once as the skill. Every one runs only when asked:
-`disable-model-invocation` for Claude Code and pi, `allow_implicit_invocation: false` in
-`agents/openai.yaml` for Codex.
+These are skills you run by name. None runs on its own: `disable-model-invocation` holds
+them back in Claude Code and pi, and `allow_implicit_invocation: false` in
+`agents/openai.yaml` does it in Codex.
 
 | Agent | How to run `gate` |
 |---|---|
 | Claude Code (plugin) | `/husniadil-skills:gate` |
-| pi | `/gate` (prompt template) or `/skill:gate` |
+| pi | `/skill:gate` |
 | Codex | `$gate` |
 
-| Command | What it does |
+| Skill | What it does |
 |---|---|
 | `gate` | Finds and runs the project's format, lint, typecheck and tests, and shows the real output |
 | `audit` | Reviews the diff, the codebase or its architecture, with every finding verified |
