@@ -4,4 +4,8 @@ description: Ask the user a question through the AskUserQuestion tool, with opti
 disable-model-invocation: true
 ---
 
-Invoke AskUserQuestion
+Invoke AskUserQuestion.
+
+When there are more questions than one call takes, ask the rest in another
+call once the user has answered, and keep going until every question is asked.
+Drop any question an earlier answer already settled.
