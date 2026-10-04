@@ -26,8 +26,9 @@ Options:
                                     when --format is all.
   --keep-work                       Leave the temporary directory in place.
 
-Needs GROQ_API_KEY, ffmpeg, python3, curl. Needs yt-dlp for a URL.
-Set OPENAI_API_KEY to enable the fallback.
+Needs GROQ_API_KEY (or GROQ_BASE_URL naming a proxy that holds it), ffmpeg,
+python3, curl. Needs yt-dlp for a URL.
+Set OPENAI_API_KEY (or OPENAI_BASE_URL) to enable the fallback.
 EOF
 }
 
@@ -65,11 +66,13 @@ done
 
 # Where the two providers are reached. A proxy that holds the key at its own
 # edge (an exe.dev integration, a gateway of your own) is given here instead,
-# and then no key belongs in this environment at all. A key is required only
-# for talking to the provider directly.
+# and then no key belongs in this environment at all. That includes the
+# provider's own host named explicitly: a Claude Code cloud session's agent
+# proxy adds the key on the way out to api.groq.com. A key is required only
+# when the base URL is left unset.
 groq_base="${GROQ_BASE_URL:-https://api.groq.com}"
 openai_base="${OPENAI_BASE_URL:-https://api.openai.com}"
-if [[ "$groq_base" == "https://api.groq.com" && -z "${GROQ_API_KEY:-}" ]]; then
+if [[ -z "${GROQ_BASE_URL:-}" && -z "${GROQ_API_KEY:-}" ]]; then
   echo "GROQ_API_KEY is not set, and GROQ_BASE_URL names no proxy to hold it" >&2
   exit 1
 fi
@@ -206,7 +209,7 @@ for chunk in "$work"/chunks/part-*.flac; do
   # provider. A 4xx that is not 429 is our own request, and retrying it
   # somewhere else would just fail again.
   if [[ "$status" == "429" || "$status" =~ ^5 ]] \
-     && [[ -n "${OPENAI_API_KEY:-}" || "$openai_base" != "https://api.openai.com" ]]; then
+     && [[ -n "${OPENAI_API_KEY:-}" || -n "${OPENAI_BASE_URL:-}" ]]; then
     echo "Groq answered $status, falling back to OpenAI…" >&2
     status="$(post "$openai_base/v1/audio/transcriptions" \
                    "${OPENAI_API_KEY:-}" "whisper-1" "$chunk" "$response")"

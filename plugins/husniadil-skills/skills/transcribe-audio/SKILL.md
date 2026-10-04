@@ -63,10 +63,13 @@ install ffmpeg` and `pipx install yt-dlp` on Debian or Ubuntu). Do not install
 it yourself, and do not switch to a local Whisper.
 
 Set `GROQ_BASE_URL` instead where a proxy holds the key at its own edge, and
-then no key belongs in the environment. `OPENAI_BASE_URL` does the same for the
-fallback. Either falls back to the provider's own host when unset.
+then no key belongs in the environment. That includes the provider's own host:
+in a Claude Code cloud session whose environment holds the key as an API
+credential for `api.groq.com`, set `GROQ_BASE_URL=https://api.groq.com`.
+`OPENAI_BASE_URL` does the same for the fallback. Either falls back to the
+provider's own host when unset.
 
-`OPENAI_API_KEY` enables the fallback. A chunk that Groq answers with 429 or
+`OPENAI_API_KEY` or `OPENAI_BASE_URL` enables the fallback. A chunk that Groq answers with 429 or
 a 5xx is retried against OpenAI's `whisper-1`, which speaks the same wire
 shape. A 4xx that is not 429 is our own request, so it fails rather than
 spending money to fail again elsewhere.
