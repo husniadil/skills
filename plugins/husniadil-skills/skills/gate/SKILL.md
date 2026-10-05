@@ -1,7 +1,7 @@
 ---
 name: gate
 description: Find and run this project's quality gate (format, lint, typecheck, tests) and show the real output
-argument-hint: [subset, e.g. lint | test <filter>]
+argument-hint: "[subset, e.g. lint | test <filter>]"
 disable-model-invocation: true
 ---
 
