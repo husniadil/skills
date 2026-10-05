@@ -1,6 +1,6 @@
 ---
 name: debts
-description: List what this session's work still owes (unfinished, unverified, unshipped, or left stale), each item checked against the current state
+description: List what this session's work still owes (unfinished, unverified, unshipped, or left stale), each item checked against the current state, then ask which to pay off
 argument-hint: [area, e.g. a feature, a repo, or a path]
 disable-model-invocation: true
 ---
@@ -19,6 +19,15 @@ A debt is anything the user would reasonably expect to be done, from their own r
 
 Not debts: anything the user deferred or said they would handle themselves, and tech debt that predates the session. Mention these only when they block something or the user asked about them.
 
-Report only. Do not pay anything off in this turn; the user picks what to fix, often with `/fix-all`.
+Do not pay anything off before the user picks.
 
 Open with the answer: how many debts, or none. Number each debt `U1`, `U2`, ... and group them by who it waits on: the agent (work it can do now, marking any that needs a plan first), the user (a decision, an approval such as a push or a deploy, or a check only they can make), and anyone else. One line per debt saying what is owed, with its evidence: `path:line`, a commit hash, or the command and its output. End with what was checked and found clean, and what was not checked.
+
+Then ask with the AskUserQuestion tool, when it is available and there is something to ask:
+
+- Which debts to pay off now: a multiSelect question over the agent's debts that need no plan, one option per debt, labeled with its code and a few words, four options per question.
+- One question per decision in the user's group that the agent can carry out once answered, such as a push or a deploy, with the concrete choices as options.
+
+Checks only the user can make stay in the report; they are not questions. A call takes four questions at most, so ask the rest in another call once the user has answered, and drop any question an earlier answer settled. Without the tool, end with the report and ask in plain text which debts to pay off.
+
+Act on the answers one debt at a time: re-read the cited code or state, make the smallest change that pays it off, verify it with the project's gate or the narrowest check that covers it, and only then move on. Commit, push, or deploy only when an answer said to. Report each picked debt as `done`, with its evidence, or `skipped`, with what blocked it.
