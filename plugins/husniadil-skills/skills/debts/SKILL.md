@@ -1,11 +1,11 @@
 ---
 name: debts
-description: List what this session's work still owes (unfinished, unverified, unshipped, or left stale), each item checked against the current state, then ask which to pay off
-argument-hint: "[area, e.g. a feature, a repo, or a path]"
+description: List what this session's work still owes (unfinished, unverified, unshipped, or left stale), each item checked against the current state, and with `fix`, ask which to pay off
+argument-hint: "[fix] [area, e.g. a feature, a repo, or a path]"
 disable-model-invocation: true
 ---
 
-List the debts this session's work still carries. Scope: `$ARGUMENTS`. Empty means everything the session touched; a feature, repo, or path narrows it to that.
+List the debts this session's work still carries. Arguments: `$ARGUMENTS`. A leading `fix` means offer to pay them off after the report; without it, the report is the whole job. The rest is the scope: empty means everything the session touched, and a feature, repo, or path narrows it to that.
 
 A debt is anything the user would reasonably expect to be done, from their own requests or from the agent's own words, that is not done yet. Check the current state for each kind below. Memory of what was done is not evidence: run the command or read the file.
 
@@ -23,7 +23,7 @@ Do not pay anything off before the user picks.
 
 Open with the answer: how many debts, or none. Number each debt `U1`, `U2`, ... and group them by who it waits on: the agent (work it can do now, marking any that needs a plan first), the user (a decision, an approval such as a push or a deploy, or a check only they can make), and anyone else. One line per debt saying what is owed, with its evidence: `path:line`, a commit hash, or the command and its output. End with what was checked and found clean, and what was not checked.
 
-Then ask with the AskUserQuestion tool, when it is available and there is something to ask:
+Without `fix`, stop here. With it, ask with the AskUserQuestion tool, when it is available and there is something to ask:
 
 - Which debts to pay off now: a multiSelect question over the agent's debts that need no plan, one option per debt, labeled with its code and a few words. The tool takes two to four options per question, so split five debts as three and two, and ask about a lone debt with `Pay it off` and `Leave it`.
 - The agent's debts that need a plan first: one question naming them, whose two options both only acknowledge, `Ack` and `Ack, and explain why each needs a plan`. Nothing is done about them in this run.
