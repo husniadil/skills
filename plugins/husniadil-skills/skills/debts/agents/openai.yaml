@@ -1,0 +1,5 @@
+interface:
+  display_name: "Debts"
+  short_description: "List what this session's work still owes (unfinished,..."
+policy:
+  allow_implicit_invocation: false

@@ -76,6 +76,7 @@ them back in Claude Code and pi, and `allow_implicit_invocation: false` in
 | `fix-all` | Fixes the last review's findings one at a time, each verified |
 | `commit-all` | Commits the session's work by path, in coherent units |
 | `review-plan` | Checks a plan file against the repository and fixes it in place |
+| `debts` | Lists what the session's work still owes, each item checked against the current state |
 | `pre-compact` | Saves what compaction would lose and writes a prompt to resume from |
 | `ask-user-question` | Asks through the AskUserQuestion tool |
 
