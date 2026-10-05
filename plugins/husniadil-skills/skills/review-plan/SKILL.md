@@ -1,7 +1,7 @@
 ---
 name: review-plan
 description: Review a plan file for inconsistencies and gaps, then fix it in place
-argument-hint: [path]
+argument-hint: "[path]"
 disable-model-invocation: true
 ---
 

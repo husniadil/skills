@@ -1,7 +1,7 @@
 ---
 name: fix-all
 description: Fix the findings from the last review in this conversation, one at a time, each verified before moving on
-argument-hint: [F1 F3 ... | all]
+argument-hint: "[F1 F3 ... | all]"
 disable-model-invocation: true
 ---
 
