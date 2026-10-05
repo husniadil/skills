@@ -26,8 +26,9 @@ Open with the answer: how many debts, or none. Number each debt `U1`, `U2`, ... 
 Then ask with the AskUserQuestion tool, when it is available and there is something to ask:
 
 - Which debts to pay off now: a multiSelect question over the agent's debts that need no plan, one option per debt, labeled with its code and a few words, four options per question.
+- The agent's debts that need a plan first: one question naming them, whose two options both only acknowledge, `Ack` and `Ack, and explain why each needs a plan`. Nothing is done about them in this run.
 - One question per decision in the user's group that the agent can carry out once answered, such as a push or a deploy, with the concrete choices as options.
 
-Checks only the user can make stay in the report; they are not questions. A call takes four questions at most, so ask the rest in another call once the user has answered, and drop any question an earlier answer settled. Without the tool, end with the report and ask in plain text which debts to pay off.
+Checks only the user can make stay in the report; they are not questions. When there are more questions than one call takes, ask the rest in another call once the user has answered, and keep going until every question is asked. Drop any question an earlier answer already settled. Without the tool, end with the report and ask in plain text which debts to pay off.
 
 Act on the answers one debt at a time: re-read the cited code or state, make the smallest change that pays it off, verify it with the project's gate or the narrowest check that covers it, and only then move on. Commit, push, or deploy only when an answer said to. Report each picked debt as `done`, with its evidence, or `skipped`, with what blocked it.
