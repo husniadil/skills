@@ -1,6 +1,6 @@
 ---
 name: model-prompting-guides
-description: Model-specific prompting rules for Claude Fable 5.1, Claude Fable 5, Claude Opus 5.5, Claude Opus 5, Claude Opus 4.8, Claude Sonnet 5.5, Claude Sonnet 5, Claude Haiku 4.5, GPT-5.6 (Sol, Terra, Luna), GPT-6 Astra, GPT-6 Sol, GPT-6 Luna, and GPT-6.1 Sol. Use before delegating to an agent or subagent that runs one of these models, and when writing or debugging a prompt, system prompt, tool policy, autonomy rule, or output contract for one of them.
+description: Model-specific prompting rules for Claude Fable 5.1, Claude Fable 5, Claude Opus 5.5, Claude Opus 5, Claude Opus 4.8, Claude Sonnet 5.5, Claude Sonnet 5, Claude Haiku 4.5, GPT-5.6 (Sol, Terra, Luna), GPT-6 Astra, GPT-6 Sol, GPT-6 Luna, and GPT-6.1 Sol. Use every time you spawn, run, or delegate to a subagent or a new agent, before writing its prompt, and when writing or debugging a prompt, system prompt, tool policy, autonomy rule, or output contract for one of these models.
 ---
 
 # Model prompting guides
@@ -29,3 +29,21 @@ carry its GPT-6 family guidance, written from Astra, and say so where it applies
 from the delegation template, keep only the conditional blocks the task needs, and check
 the failure-mode list when a first attempt misbehaves. One file per model version: a new
 version gets a new file, and older files stay for agents still running that model.
+
+## Spawning a subagent
+
+Find out which model the subagent will run on, then load its reference above. Write the
+task prompt from that reference's delegation template, and take the effort level from its
+Effort section. Then spawn it the way the harness allows:
+
+- Claude Code: the Agent tool takes a model but no effort, so spawn the agent that pins
+  the level, `husniadil-skills:general-<level>` or `husniadil-skills:explore-<level>`,
+  where `<level>` is `low`, `medium`, `high` or `xhigh`. Pass `model` when the subagent
+  should not run on the default. If the Workflow tool's own opt-in rule is already met in
+  this session, pass `model` and `effort` to `agent()` inside the workflow instead.
+- Codex: call `spawn_agent` with `model` and `reasoning_effort`.
+- pi with the pi-subagents extension: spawn `general-<level>` or `explore-<level>`, or put
+  the level on the model as `provider/id:<level>`.
+
+Pick a level the model supports. On a model without effort levels, such as Claude Haiku
+4.5, the pinned level is ignored.
