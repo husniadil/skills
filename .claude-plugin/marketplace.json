@@ -9,7 +9,7 @@
     {
       "name": "husniadil-skills",
       "source": "./plugins/husniadil-skills",
-      "description": "Agent skills by Husni Adil Makmur: per-model prompting guides, /goal conditions, video analysis, audio and YouTube transcripts, and workflow commands for gates, audits, fixes, commits and plans.",
+      "description": "Agent skills by Husni Adil Makmur: per-model prompting guides, effort-pinned subagents for Claude Code and pi, /goal conditions, video analysis, audio and YouTube transcripts, and workflow commands for gates, audits, fixes, commits and plans.",
       "author": {
         "name": "Husni Adil Makmur",
         "url": "https://github.com/husniadil"

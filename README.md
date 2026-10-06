@@ -2,8 +2,8 @@
 
 Claude plugins by Husni Adil Makmur, in one marketplace named `husniadil`:
 
-- **husniadil-skills**: skills and workflow commands for Claude Code, Codex, and other
-  skill-aware agents. The rest of this page is about it.
+- **husniadil-skills**: skills, workflow commands, and effort-pinned subagents for Claude
+  Code, Codex, and other skill-aware agents. The rest of this page is about it.
 - **indonesian-holiday-calendar**: Indonesian public holidays and cuti bersama as calendar
   tools, and the next holiday above the prompt in Claude Code. See
   [its README](plugins/indonesian-holiday-calendar/README.md).
@@ -24,6 +24,12 @@ Claude Code plugin marketplace:
 
 In Claude Code a plugin's skills are invoked with the plugin's name in front, such as
 `/husniadil-skills:gate`.
+
+pi:
+
+```text
+pi install git:github.com/husniadil/skills
+```
 
 Manual: copy any folder under `plugins/husniadil-skills/skills/` into your agent's skills
 directory (`~/.claude/skills/`, `.claude/skills/`, `.agents/skills/`, or the equivalent).
@@ -79,6 +85,47 @@ them back in Claude Code and pi, and `allow_implicit_invocation: false` in
 | `debts` | Lists what the session's work still owes, each item checked, and with `fix` asks which to pay off |
 | `pre-compact` | Saves what compaction would lose and writes a prompt to resume from |
 | `ask-user-question` | Asks through the AskUserQuestion tool |
+
+## Agents
+
+Eight subagents in `plugins/husniadil-skills/agents/`, each pinning one effort level, so a
+parent agent can choose the level per task. Claude Code's Agent tool takes a model but no
+effort, and these fill that gap. `model-prompting-guides` tells the parent which one to
+spawn.
+
+| Agent | What it does |
+|---|---|
+| `general-low`, `general-medium`, `general-high`, `general-xhigh` | General-purpose work at that effort |
+| `explore-low`, `explore-medium`, `explore-high`, `explore-xhigh` | Read-only code search at that effort. In Claude Code it skips CLAUDE.md, like the built-in Explore. |
+
+The color follows the level: low green, medium yellow, high orange, xhigh red. No agent
+pins a model, so pass one per call when the default does not fit.
+
+| Harness | How to spawn `general-high` |
+|---|---|
+| Claude Code (plugin) | Agent tool with `subagent_type: "husniadil-skills:general-high"` |
+| pi | `general-high`, through [pi-subagents](https://github.com/nicobailon/pi-subagents) |
+| Codex | Not shipped, because a Codex plugin cannot carry agent roles. Call `spawn_agent` with `reasoning_effort` instead. |
+
+pi has no subagents of its own. Install the extension, which finds these agents through
+`pi.subagents.agents` in this repository's `package.json`. It needs the current pi,
+`@earendil-works/pi-coding-agent`.
+
+```text
+pi install npm:pi-subagents
+```
+
+One file serves both harnesses. Claude Code reads `effort`, `color`, `disallowedTools` and
+`omitClaudeMd`. pi-subagents reads `thinking` and `excludeTools`. Each ignores the keys it
+does not know.
+
+How the level behaves in Claude Code:
+
+- `CLAUDE_CODE_EFFORT_LEVEL`, when set, overrides the pinned level.
+- A model without `xhigh` runs it at `high`.
+- Claude Haiku 4.5 has no effort levels and ignores it.
+- Without `model`, the subagent runs on `CLAUDE_CODE_SUBAGENT_MODEL` when that is set, and
+  on the parent's model otherwise.
 
 ## Updating a guide
 
