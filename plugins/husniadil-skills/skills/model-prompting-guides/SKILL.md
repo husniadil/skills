@@ -1,6 +1,6 @@
 ---
 name: model-prompting-guides
-description: Model-specific prompting rules for Claude Fable 5.1, Claude Fable 5, Claude Opus 5.5, Claude Opus 5, Claude Opus 4.8, Claude Sonnet 5.5, Claude Sonnet 5, Claude Haiku 4.5, GPT-5.6 (Sol, Terra, Luna), GPT-6 Astra, GPT-6 Sol, GPT-6 Luna, and GPT-6.1 Sol. Use every time you spawn, run, or delegate to a subagent or a new agent, before writing its prompt, and when writing or debugging a prompt, system prompt, tool policy, autonomy rule, or output contract for one of these models.
+description: Model-specific prompting rules for Claude Fable 5.1, Claude Fable 5, Claude Opus 5.5, Claude Opus 5, Claude Opus 4.8, Claude Sonnet 5.5, Claude Sonnet 5, Claude Haiku 5.5, Claude Haiku 4.5, GPT-5.6 (Sol, Terra, Luna), GPT-6 Astra, GPT-6 Sol, GPT-6 Luna, and GPT-6.1 Sol. Use every time you spawn, run, or delegate to a subagent or a new agent, before writing its prompt, and when writing or debugging a prompt, system prompt, tool policy, autonomy rule, or output contract for one of these models.
 ---
 
 # Model prompting guides
@@ -17,6 +17,7 @@ change, a delegation template, and the fix for each known failure mode.
 - Claude Opus 4.8: [references/claude-opus-4.8.md](references/claude-opus-4.8.md)
 - Claude Sonnet 5.5: [references/claude-sonnet-5.5.md](references/claude-sonnet-5.5.md)
 - Claude Sonnet 5: [references/claude-sonnet-5.md](references/claude-sonnet-5.md)
+- Claude Haiku 5.5: [references/claude-haiku-5.5.md](references/claude-haiku-5.5.md)
 - Claude Haiku 4.5: [references/claude-haiku-4.5.md](references/claude-haiku-4.5.md)
 - GPT-5.6 Sol, Terra, Luna: [references/gpt-5.6.md](references/gpt-5.6.md)
 - GPT-6 Astra: [references/gpt-6-astra.md](references/gpt-6-astra.md)

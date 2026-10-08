@@ -1,7 +1,7 @@
 {
   "name": "husniadil-skills",
   "displayName": "Husni Adil Makmur Skills",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Agent skills by Husni Adil Makmur: per-model prompting guides, effort-pinned subagents for Claude Code and pi, /goal conditions, video analysis, audio and YouTube transcripts, and workflow commands for gates, audits, fixes, commits and plans.",
   "author": {
     "name": "Husni Adil Makmur",
