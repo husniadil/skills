@@ -25,6 +25,16 @@ Claude Code plugin marketplace:
 In Claude Code a plugin's skills are invoked with the plugin's name in front, such as
 `/husniadil-skills:gate`.
 
+Codex:
+
+```text
+codex plugin marketplace add husniadil/skills
+codex plugin add husniadil-skills@husniadil
+```
+
+The Codex marketplace carries `husniadil-skills` only. In Codex a skill is invoked with `$`
+in front of its name, such as `$gate`.
+
 pi:
 
 ```text
