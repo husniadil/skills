@@ -22,19 +22,22 @@ Follows the [Agent Skills](https://agentskills.io) open standard.
 | Short | <1 min | 2 frames/sec | Detailed visual + audio |
 | Medium | 1-3 min | 1 frame/sec | Detailed with transcription |
 | Long | 3-10 min | 1 frame/10sec | Transcription + visual overview |
-| Extended | 10+ min | 1 frame/20sec (max 60) | Transcription-dominant |
+| Extended | 10+ min | 1 frame/20sec, max 60 spread over the whole video | Transcription-dominant |
 | Custom | Any | User-specified | User-defined focus |
 
 ## Prerequisites
 
-- **ffmpeg** and **ffprobe** — frame extraction, audio processing
-- **python3** and **bc** — metadata parsing (pre-installed on macOS)
+- **ffmpeg** with the `drawtext` filter, and **ffprobe** — frame extraction,
+  audio processing. Homebrew's plain `ffmpeg` is built without freetype and
+  has no `drawtext`. `ffmpeg-full` has it, and is keg-only.
+- **python3** — metadata parsing (pre-installed on macOS)
 - **GROQ_API_KEY** — audio transcription on Groq's servers, through the
   `transcribe-audio` skill. This is the path auto mode takes.
 - **whisper** CLI — the offline fallback, used only when that key is unset
 
 ```bash
-brew install ffmpeg          # FFmpeg + ffprobe
+brew install ffmpeg-full     # FFmpeg + ffprobe, with drawtext
+export PATH="$(brew --prefix ffmpeg-full)/bin:$PATH"
 pip install openai-whisper   # offline fallback only, not needed with GROQ_API_KEY
 ```
 
