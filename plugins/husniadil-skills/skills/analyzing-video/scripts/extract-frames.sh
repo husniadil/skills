@@ -24,6 +24,11 @@ MAX_FRAME_CAP=1000
 MAX_GRID_DIM=10
 MAX_GRID_CELLS=100
 
+# Quoted for JSON, so a name with " or \ in it still makes valid metadata.
+json_string() {
+    python3 -c 'import json, sys; print(json.dumps(sys.argv[1]))' "$1"
+}
+
 is_positive_number() {
     [[ "$1" =~ ^[0-9]+([.][0-9]+)?$ ]] || return 1
     awk -v n="$1" 'BEGIN { exit !(n > 0) }'
@@ -291,16 +296,16 @@ fi
 # Write metadata file
 cat > "${OUTPUT_DIR}/metadata.json" <<METAEOF
 {
-  "source": "$(basename "$INPUT")",
+  "source": $(json_string "$(basename "$INPUT")"),
   "duration_seconds": $DURATION,
-  "resolution": "$RESOLUTION",
+  "resolution": $(json_string "$RESOLUTION"),
   "video_stream_index": $STREAM_INDEX,
   "fps_rate": $FPS,
   "grid_layout": "$GRID_LAYOUT",
   "total_frames_extracted": $EXTRACTED,
   "montage_grids": $GRIDS,
   "scene_changes": $SCENE_COUNT,
-  "output_directory": "$OUTPUT_DIR"
+  "output_directory": $(json_string "$OUTPUT_DIR")
 }
 METAEOF
 

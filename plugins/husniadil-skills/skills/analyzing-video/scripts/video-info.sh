@@ -16,6 +16,11 @@ END_TIME="${4:-}"          # e.g., "00:00:30" or "30"
 MAX_FPS=120
 MAX_CUSTOM_FRAMES=1000
 
+# Quoted for JSON, so a name with " or \ in it still makes valid metadata.
+json_string() {
+    python3 -c 'import json, sys; print(json.dumps(sys.argv[1]))' "$1"
+}
+
 is_positive_number() {
     [[ "$1" =~ ^[0-9]+([.][0-9]+)?$ ]] || return 1
     awk -v n="$1" 'BEGIN { exit !(n > 0) }'
@@ -229,8 +234,8 @@ FORMATTED=$(printf '%02d:%02d:%02d' $((DURATION_INT/3600)) $(( (DURATION_INT%360
 
 cat <<EOF
 {
-  "file": "$(basename "$INPUT")",
-  "path": "$INPUT",
+  "file": $(json_string "$(basename "$INPUT")"),
+  "path": $(json_string "$INPUT"),
   "duration_seconds": $DURATION,
   "duration_formatted": "$FORMATTED",
   "effective_duration": $EFFECTIVE_DURATION,
@@ -239,7 +244,7 @@ cat <<EOF
   "filesize_bytes": $FILESIZE,
   "width": $WIDTH,
   "height": $HEIGHT,
-  "codec": "$CODEC",
+  "codec": $(json_string "$CODEC"),
   "source_fps": $SOURCE_FPS,
   "orientation": "$ORIENTATION",
   "has_audio": $HAS_AUDIO,
@@ -253,6 +258,6 @@ cat <<EOF
   "whisper_model": "$WHISPER_MODEL",
   "grid_layout": "$GRID_LAYOUT",
   "frames_per_grid": $FRAMES_PER_GRID,
-  "work_dir": "$WORK_DIR"
+  "work_dir": $(json_string "$WORK_DIR")
 }
 EOF
