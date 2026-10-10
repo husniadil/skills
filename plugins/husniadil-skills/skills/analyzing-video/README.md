@@ -103,7 +103,7 @@ The skill activates on:
 ## How It Works
 
 1. **video-info.sh** — detects correct stream (skips thumbnails), determines tier, orientation, grid layout. Accepts optional fps override and time range.
-2. **extract-frames.sh** — extracts frames, creates montage grids, detects scene changes, extracts high-res key frames at each transition.
+2. **extract-frames.sh** — extracts frames, creates montage grids, detects scene changes, extracts up to 20 high-res key frames at transitions spread over the range.
 3. **extract-audio.sh** — extracts audio, transcribes it (hosted or local), detects silence segments.
 4. **Parallel subagents** — grid agents analyze montage grids, key frame agent analyzes scene-change moments, audio agent analyzes transcription.
 5. **Synthesis** — merges all results into a structured Markdown analysis document.

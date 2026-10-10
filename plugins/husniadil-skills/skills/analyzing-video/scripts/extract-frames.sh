@@ -147,12 +147,23 @@ fi
 MAP_ARGS=("-map" "0:${STREAM_INDEX}")
 # Expanded below as ${TIME_ARGS[@]+...}, because macOS's /bin/bash 3.2 calls
 # an empty array unbound under set -u, and a run with no time range died.
+#
+# The range goes before -i, so every filter sees only the frames inside it.
+# As output options -ss and -to trimmed what was written after the filters
+# had seen the whole video: showinfo reported a scene change at 50s for 15-45,
+# and a 30-90 range died at the grid step with no grid written (measured),
+# most likely because tile began its grid at 0s and the grid was dropped as
+# being before 30s. -copyts keeps the video's own clock, which the burned-in
+# timestamps and key frame seeks rely on.
 TIME_ARGS=()
 if [[ -n "$START_TIME" ]]; then
-    TIME_ARGS+=("-ss" "$START_TIME")
+    TIME_ARGS+=("-ss" "$START_SECONDS")
 fi
 if [[ -n "$END_TIME" ]]; then
-    TIME_ARGS+=("-to" "$END_TIME")
+    TIME_ARGS+=("-to" "$END_SECONDS")
+fi
+if [[ ${#TIME_ARGS[@]} -gt 0 ]]; then
+    TIME_ARGS+=("-copyts")
 fi
 
 # Get video info from the correct stream
@@ -185,9 +196,8 @@ MONTAGE_LIMIT_ARGS=("-frames:v" "$MONTAGE_LIMIT")
 echo "Frame limit: $EFFECTIVE_FRAME_LIMIT"
 
 # Extract individual frames as JPG
-ffmpeg -i "$INPUT" \
+ffmpeg ${TIME_ARGS[@]+"${TIME_ARGS[@]}"} -i "$INPUT" \
     "${MAP_ARGS[@]}" \
-    ${TIME_ARGS[@]+"${TIME_ARGS[@]}"} \
     -vf "$FILTER" \
     -q:v 2 \
     "${FRAME_LIMIT_ARGS[@]}" \
@@ -206,9 +216,8 @@ echo "=== Creating Montage Grids ==="
 GRID_CELL_WIDTH=640
 MONTAGE_FILTER="fps=${FPS},scale='min(${GRID_CELL_WIDTH},iw)':-2,drawtext=text='%{pts\\:hms}':x=5:y=5:fontsize=16:fontcolor=white:borderw=1:bordercolor=black,tile=${GRID_LAYOUT}"
 
-ffmpeg -i "$INPUT" \
+ffmpeg ${TIME_ARGS[@]+"${TIME_ARGS[@]}"} -i "$INPUT" \
     "${MAP_ARGS[@]}" \
-    ${TIME_ARGS[@]+"${TIME_ARGS[@]}"} \
     -vf "$MONTAGE_FILTER" \
     -q:v 2 \
     "${MONTAGE_LIMIT_ARGS[@]}" \
@@ -222,36 +231,59 @@ echo "Created: $GRIDS montage grids (${GRID_LAYOUT})"
 echo ""
 echo "=== Scene Change Detection ==="
 SCENE_FILE="${OUTPUT_DIR}/scene_changes.txt"
-ffmpeg -i "$INPUT" \
+ffmpeg ${TIME_ARGS[@]+"${TIME_ARGS[@]}"} -i "$INPUT" \
     "${MAP_ARGS[@]}" \
-    ${TIME_ARGS[@]+"${TIME_ARGS[@]}"} \
     -vf "select='gt(scene,0.3)',showinfo" \
     -f null - 2>&1 | grep 'pts_time' | sed 's/.*pts_time:\([0-9.]*\).*/\1/' | grep '^[0-9]' > "$SCENE_FILE" || true
+
+RANGE_END="${END_SECONDS:-$DURATION}"
 
 SCENE_COUNT=$(wc -l < "$SCENE_FILE" | tr -d ' ')
 echo "Detected: $SCENE_COUNT scene changes"
 
 # Extract key frames at scene changes (high-res individual frames for detailed analysis)
-# Cap at 20 key frames to avoid excessive extraction
+# At most 20, spread over the range. Taking the first 20 put every key frame
+# of a long video in its opening minutes.
+MAX_KEY_FRAMES=20
 if [[ "$SCENE_COUNT" -gt 0 ]]; then
     mkdir -p "${OUTPUT_DIR}/key_frames"
+    # One pick per even slice of the range, the scene change nearest the
+    # slice's middle. Clustered changes can land several slices on one pick,
+    # and the slots left are filled evenly from the changes not yet taken.
+    KEY_TIMES=$(python3 - "$SCENE_FILE" "$MAX_KEY_FRAMES" "$START_SECONDS" "$RANGE_END" <<'PY'
+import sys
+path, k, start, end = sys.argv[1], int(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4])
+with open(path) as f:
+    times = [line.strip() for line in f if line.strip()]
+if len(times) > k:
+    middles = [start + (end - start) * (i + 0.5) / k for i in range(k)]
+    chosen = {min(times, key=lambda t: abs(float(t) - m)) for m in middles}
+    rest = [t for t in times if t not in chosen]
+    need = k - len(chosen)
+    chosen |= {rest[int(i * len(rest) / need)] for i in range(need)}
+    times = sorted(chosen, key=float)
+print("\n".join(times))
+PY
+)
     KEY_IDX=0
     while IFS= read -r TIMESTAMP; do
         KEY_IDX=$((KEY_IDX + 1))
-        [[ "$KEY_IDX" -gt 20 ]] && break
         # Format timestamp for filename (replace . with _)
         TS_SAFE=$(echo "$TIMESTAMP" | tr '.' '_')
         OUTFILE="${OUTPUT_DIR}/key_frames/scene_$(printf '%02d' $KEY_IDX)_${TS_SAFE}s.jpg"
-        ffmpeg -i "$INPUT" \
+        # -ss before -i seeks the input, so a key frame late in a long video
+        # does not decode everything before it. The frame is still exact:
+        # with only one keyframe at 0s, frames at 31s and 87.2s came out right
+        # (measured).
+        ffmpeg -ss "$TIMESTAMP" -i "$INPUT" \
             "${MAP_ARGS[@]}" \
-            -ss "$TIMESTAMP" \
             -frames:v 1 \
             -vf "scale='min(1280,iw)':-2,drawtext=text='${TIMESTAMP}s':x=10:y=10:fontsize=32:fontcolor=white:borderw=2:bordercolor=black" \
             -q:v 1 \
             -update 1 \
             "$OUTFILE" \
             -y -loglevel warning 2>&1
-    done < "$SCENE_FILE"
+    done <<< "$KEY_TIMES"
     KEY_EXTRACTED=$(ls "${OUTPUT_DIR}"/key_frames/scene_*.jpg 2>/dev/null | wc -l | tr -d ' ')
     echo "Extracted: $KEY_EXTRACTED key frames at scene changes"
 fi

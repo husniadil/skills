@@ -117,7 +117,7 @@ Before dispatching agents, verify output:
 Dispatch in parallel:
 
 - **Grid agents** (1 per 2-3 grids): Read montage grid images, describe visual content per time range
-- **Key frame agent** (if scene changes detected): Read high-res `key_frames/` images for detailed scene-change analysis
+- **Key frame agent** (if scene changes detected): Read high-res `key_frames/` images for detailed scene-change analysis. There are at most 20, spread over the range, so with more scene changes than that `scene_changes.txt` lists moments that have no key frame.
 - **Audio agent** (skip if mode is `skip`): Read transcription and audio metadata
 
 ### Step 5: Synthesize and Output
