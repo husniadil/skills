@@ -142,6 +142,9 @@ bash scripts/extract-frames.sh video.mp4 /tmp/output 2 0 auto 3x5 10 30
 
 # Extract audio and transcribe with medium model
 bash scripts/extract-audio.sh video.mp4 /tmp/audio medium
+
+# Extract and transcribe only 0:10 to 0:30, timestamps kept on the video's clock
+bash scripts/extract-audio.sh video.mp4 /tmp/audio medium 10 30
 ```
 
 ## Supported Formats
