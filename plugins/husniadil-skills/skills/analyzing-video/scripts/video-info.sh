@@ -192,7 +192,13 @@ EXPECTED_FRAMES=$(python3 -c "print(int(float('$EFFECTIVE_DURATION') * float('$F
 # Cap expected frames to avoid excessive extraction
 MAX_FRAMES=0
 if [[ "$CUSTOM_FPS" == "true" && "$EXPECTED_FRAMES" -gt "$MAX_CUSTOM_FRAMES" ]]; then
+    # The asked rate is lowered so the 1000 frames reach the end of the range,
+    # the same as the extended tier below. At the asked rate extraction stops
+    # at the cap partway through, and the rest of the range goes unseen.
     MAX_FRAMES="$MAX_CUSTOM_FRAMES"
+    FPS_RATE=$(awk -v frames="$MAX_FRAMES" -v duration="$EFFECTIVE_DURATION" 'BEGIN { printf "%.6f", frames / duration }')
+    EXPECTED_FRAMES="$MAX_FRAMES"
+    DESCRIPTION="Custom: ${FPS_OVERRIDE} frames/sec asked, lowered to ${FPS_RATE} so ${MAX_FRAMES} frames reach the end of the range"
 elif [[ "$TIER" == "extended" && "$EXPECTED_FRAMES" -gt 60 ]]; then
     # Past 20 minutes the rate is lowered so the 60 frames reach the end.
     # Left at 1/20sec, extraction stops at the cap, and a 2-hour video was
