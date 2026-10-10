@@ -193,10 +193,14 @@ EXPECTED_FRAMES=$(python3 -c "print(int(float('$EFFECTIVE_DURATION') * float('$F
 MAX_FRAMES=0
 if [[ "$CUSTOM_FPS" == "true" && "$EXPECTED_FRAMES" -gt "$MAX_CUSTOM_FRAMES" ]]; then
     MAX_FRAMES="$MAX_CUSTOM_FRAMES"
-elif [[ "$CUSTOM_FPS" == "false" && "$EXPECTED_FRAMES" -gt 200 ]]; then
-    MAX_FRAMES=200
-elif [[ "$TIER" == "extended" && "$CUSTOM_FPS" == "false" && "$EXPECTED_FRAMES" -gt 60 ]]; then
+elif [[ "$TIER" == "extended" && "$EXPECTED_FRAMES" -gt 60 ]]; then
+    # Past 20 minutes the rate is lowered so the 60 frames reach the end.
+    # Left at 1/20sec, extraction stops at the cap, and a 2-hour video was
+    # given 200 frames that end at its 67th minute.
     MAX_FRAMES=60
+    FPS_RATE=$(awk -v frames="$MAX_FRAMES" -v duration="$EFFECTIVE_DURATION" 'BEGIN { printf "%.6f", frames / duration }')
+    EXPECTED_FRAMES="$MAX_FRAMES"
+    DESCRIPTION="10min+: 60 frames spread over the whole range, transcription-focused"
 fi
 
 # Determine grid layout based on orientation

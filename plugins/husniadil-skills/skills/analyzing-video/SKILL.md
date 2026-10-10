@@ -20,9 +20,9 @@ Extracts frames at adaptive rates, creates montage grids, detects scene changes,
 
 ## Prerequisites
 
-Requires `ffmpeg`, `ffprobe` and `python3`. For transcription: the `transcribe-audio` skill beside this one with `GROQ_API_KEY` or `GROQ_BASE_URL` (hosted, preferred), or the local `whisper` CLI as an offline fallback.
+Requires `ffmpeg` with the `drawtext` filter, `ffprobe` and `python3`. For transcription: the `transcribe-audio` skill beside this one with `GROQ_API_KEY` or `GROQ_BASE_URL` (hosted, preferred), or the local `whisper` CLI as an offline fallback.
 
-Check with `command -v ffmpeg ffprobe python3` before the first script. If one is missing, stop and tell the user which one and the command that installs it here (`brew install ffmpeg` on macOS, `sudo apt-get install ffmpeg` on Debian or Ubuntu). Do not install it yourself, and do not do the analysis another way instead.
+Check with `command -v ffmpeg ffprobe python3` and `ffmpeg -hide_banner -filters | grep ' drawtext '` before the first script. Homebrew's plain `ffmpeg` formula is built without freetype and has no `drawtext`, so on macOS the install is `brew install ffmpeg-full`, which is keg-only: `"$(brew --prefix ffmpeg-full)/bin"` has to come ahead of the plain one on PATH. On Debian or Ubuntu it is `sudo apt-get install ffmpeg`. If something is missing, stop and tell the user which one and that command. Do not install it yourself, and do not do the analysis another way instead.
 
 ## Transcription Modes
 
@@ -86,7 +86,7 @@ Returns JSON with: `video_stream_index`, `tier`, `fps_rate`, `max_frames`, `orie
 | Short | <1 min | 2/sec | medium |
 | Medium | 1-3 min | 1/sec | medium |
 | Long | 3-10 min | 1/10sec | base |
-| Extended | 10+ min | 1/20sec (max 60) | base |
+| Extended | 10+ min | 1/20sec, max 60 spread over the whole video | base |
 
 ### Step 2: Extract Frames (and Audio)
 

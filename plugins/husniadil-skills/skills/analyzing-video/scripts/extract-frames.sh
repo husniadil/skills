@@ -110,6 +110,14 @@ if [[ -n "$END_SECONDS" && "$END_SECONDS" -le "$START_SECONDS" ]]; then
     exit 1
 fi
 
+# Every frame and grid has its timestamp burned in with drawtext, which an
+# ffmpeg built without freetype lacks. Homebrew's plain ffmpeg formula is one.
+if ! ffmpeg -hide_banner -filters 2>/dev/null | grep -q ' drawtext '; then
+    echo "ERROR: this ffmpeg has no drawtext filter (built without freetype)." >&2
+    echo "On macOS: brew install ffmpeg-full, then put \"\$(brew --prefix ffmpeg-full)/bin\" ahead of the plain ffmpeg on PATH." >&2
+    exit 1
+fi
+
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
 
@@ -137,6 +145,8 @@ fi
 
 # Build the -map argument to select the correct video stream
 MAP_ARGS=("-map" "0:${STREAM_INDEX}")
+# Expanded below as ${TIME_ARGS[@]+...}, because macOS's /bin/bash 3.2 calls
+# an empty array unbound under set -u, and a run with no time range died.
 TIME_ARGS=()
 if [[ -n "$START_TIME" ]]; then
     TIME_ARGS+=("-ss" "$START_TIME")
@@ -177,7 +187,7 @@ echo "Frame limit: $EFFECTIVE_FRAME_LIMIT"
 # Extract individual frames as JPG
 ffmpeg -i "$INPUT" \
     "${MAP_ARGS[@]}" \
-    "${TIME_ARGS[@]}" \
+    ${TIME_ARGS[@]+"${TIME_ARGS[@]}"} \
     -vf "$FILTER" \
     -q:v 2 \
     "${FRAME_LIMIT_ARGS[@]}" \
@@ -198,7 +208,7 @@ MONTAGE_FILTER="fps=${FPS},scale='min(${GRID_CELL_WIDTH},iw)':-2,drawtext=text='
 
 ffmpeg -i "$INPUT" \
     "${MAP_ARGS[@]}" \
-    "${TIME_ARGS[@]}" \
+    ${TIME_ARGS[@]+"${TIME_ARGS[@]}"} \
     -vf "$MONTAGE_FILTER" \
     -q:v 2 \
     "${MONTAGE_LIMIT_ARGS[@]}" \
@@ -214,7 +224,7 @@ echo "=== Scene Change Detection ==="
 SCENE_FILE="${OUTPUT_DIR}/scene_changes.txt"
 ffmpeg -i "$INPUT" \
     "${MAP_ARGS[@]}" \
-    "${TIME_ARGS[@]}" \
+    ${TIME_ARGS[@]+"${TIME_ARGS[@]}"} \
     -vf "select='gt(scene,0.3)',showinfo" \
     -f null - 2>&1 | grep 'pts_time' | sed 's/.*pts_time:\([0-9.]*\).*/\1/' | grep '^[0-9]' > "$SCENE_FILE" || true
 
