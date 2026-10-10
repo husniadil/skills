@@ -56,7 +56,10 @@ Pass overrides to scripts:
 ```bash
 bash ${CLAUDE_SKILL_DIR}/scripts/video-info.sh "<video_path>" [fps_override] [start_time] [end_time]
 bash ${CLAUDE_SKILL_DIR}/scripts/extract-frames.sh "<video_path>" "<work_dir>/frames" <fps> <max> <stream> <grid> [start_time] [end_time]
+bash ${CLAUDE_SKILL_DIR}/scripts/extract-audio.sh "<video_path>" "<work_dir>/audio" <whisper_model> [start_time] [end_time]
 ```
+
+A time range goes to the audio too, so only that stretch is transcribed. Its transcript and silence timestamps are positions in the whole video, the same clock the frames have burned in.
 
 When custom fps is set, tier becomes `custom` and the 1000-frame safety cap applies.
 
@@ -96,7 +99,7 @@ bash ${CLAUDE_SKILL_DIR}/scripts/extract-frames.sh "$ARGUMENTS" "<work_dir>/fram
 
 For transcription (auto mode only):
 ```bash
-bash ${CLAUDE_SKILL_DIR}/scripts/extract-audio.sh "$ARGUMENTS" "<work_dir>/audio" <whisper_model>
+bash ${CLAUDE_SKILL_DIR}/scripts/extract-audio.sh "$ARGUMENTS" "<work_dir>/audio" <whisper_model> [start_time] [end_time]
 ```
 
 Dispatch both in parallel when applicable.
@@ -165,7 +168,7 @@ rm -rf "<work_dir>"
 |--------|---------|------|
 | `scripts/video-info.sh` | Metadata, stream detection, tier | `<video_path>` |
 | `scripts/extract-frames.sh` | Frames, grids, scene detection, key frames | `<video_path> <out_dir> <fps> [max] [stream] [grid]` |
-| `scripts/extract-audio.sh` | Audio, silence detection, transcription | `<video_path> <out_dir> [model]` |
+| `scripts/extract-audio.sh` | Audio, silence detection, transcription | `<video_path> <out_dir> [model] [start] [end]` |
 
 ## References
 
