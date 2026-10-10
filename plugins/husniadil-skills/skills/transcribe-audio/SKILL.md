@@ -32,11 +32,13 @@ the transcript.
 
 1. A URL is fetched audio-only with `yt-dlp`, so a long video never downloads
    its video track.
-2. `ffmpeg` decodes the input to 16 kHz mono FLAC, which is what the API
-   wants and is the smallest the audio gets without losing anything.
-3. The chunk length is derived from how well that FLAC compressed, so each
-   chunk stays under 20 MB against a 25 MB cap. It is 20 minutes for clean
-   speech and shorter for noisy audio, never under a minute.
+2. `ffmpeg` decodes the input to 16 kHz mono 16-bit FLAC, which is what the
+   API wants and is the smallest the audio gets without losing anything.
+3. The chunk length is derived from how well that FLAC compressed, aiming at
+   20 MB a chunk against a 25 MB cap. It is 20 minutes for clean speech and
+   shorter for noisy audio, never under a minute. Every chunk is weighed after
+   the cut, and one over 24 MB has the whole file cut again shorter, because
+   a loud stretch compresses worse than the average the length came from.
 4. Each chunk is cut with an explicit `-ss` and `-t`, so its offset is exactly
    its index times the chunk length. Nothing is measured and nothing drifts.
    A last piece shorter than a second is folded into the chunk before it,
@@ -49,7 +51,8 @@ the transcript.
    the previous chunk already covered to its end is dropped. What survives at
    a seam is a phrase read twice, which is the deliberate trade: a repeated
    phrase is a smaller harm than a lost one.
-7. The chunks' segments are merged and rendered into the asked-for format.
+7. The chunks' segments are merged in chunk order and rendered into the
+   asked-for format.
 
 ## Requirements
 

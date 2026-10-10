@@ -117,7 +117,10 @@ fi
 
 echo "Decoding to 16 kHz mono…" >&2
 audio="$work/audio.flac"
-ffmpeg -v error -i "$source_file" -vn -ac 1 -ar 16000 -c:a flac "$audio"
+# 16-bit is asked for by name. A float source such as AAC or Opus otherwise
+# lands as 24-bit FLAC, whose extra bits Whisper has no use for: 37 KB/s
+# against 21 KB/s on the same 10 minutes of an AAC track (measured).
+ffmpeg -v error -i "$source_file" -vn -ac 1 -ar 16000 -sample_fmt s16 -c:a flac "$audio"
 
 duration="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$audio")"
 
@@ -133,21 +136,30 @@ duration="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$audio")
 # measure the real cut by: every piece but the last reports N/A, and the last
 # reports the whole file. Cutting by hand makes each chunk's offset exactly
 # its index times the length, with nothing to measure and nothing to drift.
+budget=$((20 * 1024 * 1024))
+# 24 million bytes is under 25 MB whether the providers count it in powers of
+# ten or of two.
+cap=24000000
 audio_bytes="$(wc -c < "$audio" | tr -d ' ')"
 chunk_seconds="$(python3 -c "
-budget = 20 * 1024 * 1024
 per_second = $audio_bytes / max($duration, 1)
-print(max(60, min(1200, int(budget / max(per_second, 1)))))
+print(max(60, min(1200, int($budget / max(per_second, 1)))))
 ")"
 
 mkdir -p "$work/chunks"
 
-# A remainder shorter than a second is folded into the chunk before it rather
-# than sent on its own. Whisper answers a fragment of near-silence with a
-# hallucinated line, and a 0.02s tail put a stray "Thank you." on the end of
-# a transcript (measured). The last chunk therefore runs to the end of the
-# file instead of being capped.
-chunk_count="$(python3 -c "
+# The length comes from the average rate, and a loud stretch compresses worse
+# than the average: on one 2-hour recording two of fifteen chunks came to
+# 25.8 MB and 27.6 MB where the average rate gave 21.3 MB (measured). So
+# every cut is weighed, and a chunk over the cap has the whole file cut again
+# shorter.
+while :; do
+  # A remainder shorter than a second is folded into the chunk before it
+  # rather than sent on its own. Whisper answers a fragment of near-silence
+  # with a hallucinated line, and a 0.02s tail put a stray "Thank you." on the
+  # end of a transcript (measured). The last chunk therefore runs to the end
+  # of the file instead of being capped.
+  chunk_count="$(python3 -c "
 import math
 n = max(1, math.ceil($duration / $chunk_seconds))
 if n > 1 and $duration - (n - 1) * $chunk_seconds < 1:
@@ -155,34 +167,50 @@ if n > 1 and $duration - (n - 1) * $chunk_seconds < 1:
 print(n)
 ")"
 
-# Each chunk reaches past its own length into the next one. A cut that lands
-# mid-word gives the model half a word on both sides of the seam, and what it
-# cannot read it drops silently: at a 7s cut this recording lost "ten,
-# eleven", at 8s it lost "fourteen, fifteen" (measured). Reading on means the
-# chunk before the seam always holds the straddling word whole, and the
-# renderer drops whatever the next chunk repeats.
-overlap="$(python3 -c "print(max(1, min(10, $chunk_seconds // 4)))")"
+  # Each chunk reaches past its own length into the next one. A cut that
+  # lands mid-word gives the model half a word on both sides of the seam, and
+  # what it cannot read it drops silently: at a 7s cut this recording lost
+  # "ten, eleven", at 8s it lost "fourteen, fifteen" (measured). Reading on
+  # means the chunk before the seam always holds the straddling word whole,
+  # and the renderer drops whatever the next chunk repeats.
+  overlap="$(python3 -c "print(max(1, min(10, $chunk_seconds // 4)))")"
 
-if [[ "$chunk_count" -gt 1 ]]; then
-  echo "Splitting ${duration%.*}s into $chunk_count chunks of ${chunk_seconds}s, ${overlap}s overlap…" >&2
-  for ((i = 0; i < chunk_count; i++)); do
-    target="$(printf '%s/chunks/part-%04d.flac' "$work" "$i")"
-    if [[ "$i" -eq $((chunk_count - 1)) ]]; then
-      ffmpeg -v error -ss "$((i * chunk_seconds))" -i "$audio" -c:a flac "$target"
-    else
-      ffmpeg -v error -ss "$((i * chunk_seconds))" -t "$((chunk_seconds + overlap))" \
-        -i "$audio" -c:a flac "$target"
-    fi
-  done
-else
-  cp "$audio" "$work/chunks/part-0000.flac"
-fi
+  rm -f "$work"/chunks/part-*.flac
+  if [[ "$chunk_count" -gt 1 ]]; then
+    echo "Splitting ${duration%.*}s into $chunk_count chunks of ${chunk_seconds}s, ${overlap}s overlap…" >&2
+    for ((i = 0; i < chunk_count; i++)); do
+      target="$(printf '%s/chunks/part-%04d.flac' "$work" "$i")"
+      # The frame size is given because ffmpeg 9 otherwise refuses some
+      # offsets with "invalid block size: 5", under FLAC's minimum of 16
+      # samples (measured 4416s into a 2-hour recording).
+      if [[ "$i" -eq $((chunk_count - 1)) ]]; then
+        ffmpeg -v error -ss "$((i * chunk_seconds))" -i "$audio" \
+          -c:a flac -frame_size 4096 "$target"
+      else
+        ffmpeg -v error -ss "$((i * chunk_seconds))" -t "$((chunk_seconds + overlap))" \
+          -i "$audio" -c:a flac -frame_size 4096 "$target"
+      fi
+    done
+  else
+    cp "$audio" "$work/chunks/part-0000.flac"
+  fi
+
+  largest="$(python3 -c "
+import glob, os, sys
+print(max(os.path.getsize(p) for p in glob.glob(os.path.join(sys.argv[1], 'part-*.flac'))))
+" "$work/chunks")"
+  [[ "$largest" -le "$cap" ]] && break
+  chunk_seconds="$(python3 -c "print(max(60, int($chunk_seconds * $budget / $largest)))")"
+  echo "A chunk came to $largest bytes, over the $cap cap. Cutting again at ${chunk_seconds}s…" >&2
+done
 
 # One chunk to one provider. Prints the HTTP status so the caller decides
 # whether the failure is worth falling back over.
 post() {
   local endpoint="$1" key="$2" post_model="$3" chunk="$4" target="$5"
-  local args=(-s -w '%{http_code}' -X POST "$endpoint"
+  # -S keeps curl's own error on a failed connection. With -s alone the
+  # script exits on curl's status without a word.
+  local args=(-sS -w '%{http_code}' -X POST "$endpoint"
               -F "file=@$chunk"
               -F "model=$post_model"
               -F "response_format=verbose_json"
@@ -229,7 +257,7 @@ echo "$chunk_count" > "$work/count.txt"
 
 render() {
   python3 - "$work" "$1" <<'PY'
-import glob, json, os, sys
+import json, os, sys
 
 work, fmt = sys.argv[1], sys.argv[2]
 
@@ -247,13 +275,17 @@ with open(os.path.join(work, "count.txt")) as f:
 # the next chunk repeats. Whisper sometimes returns one coarse segment for a
 # whole chunk, and dropping those by overlap threw away entire chunks of
 # speech (measured).
+#
+# The chunks are walked by number. A sorted glob puts response-10 before
+# response-2, and the covered-segment rule below then dropped chunks 2 to 9
+# of a 21-chunk recording whole, 51 minutes, with the script exiting 0
+# (measured).
 segments = []
-for response in sorted(glob.glob(os.path.join(work, "response-*.json"))):
-    index = response.rsplit("-", 1)[1].removesuffix(".json")
+for index in range(1, count + 1):
     with open(os.path.join(work, f"offset-{index}.txt")) as f:
         offset = float(f.read().strip())
-    last_chunk = int(index) == count
-    with open(response) as f:
+    last_chunk = index == count
+    with open(os.path.join(work, f"response-{index}.json")) as f:
         payload = json.load(f)
     for segment in payload.get("segments", []):
         start = segment["start"] + offset
