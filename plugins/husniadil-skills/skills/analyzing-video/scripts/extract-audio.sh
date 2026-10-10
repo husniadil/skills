@@ -1,15 +1,38 @@
 #!/usr/bin/env bash
 # Audio Extraction and Transcription Script
-# Usage: extract-audio.sh <input_video> <output_dir> [whisper_model]
-# Example: extract-audio.sh video.mp4 /tmp/audio medium
+# Usage: extract-audio.sh <input_video> <output_dir> [whisper_model] [start_time] [end_time]
+# Example: extract-audio.sh video.mp4 /tmp/audio medium 0:10 0:30
+# With a time range only that stretch is extracted and transcribed, and the
+# transcript's and the silence list's timestamps are positions in the whole
+# video, the same clock extract-frames.sh burns into the frames.
 
 set -euo pipefail
 
 [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]] && export PATH="$HOME/bin:$PATH"
 
-INPUT="${1:?Usage: extract-audio.sh <input_video> <output_dir> [whisper_model]}"
+INPUT="${1:?Usage: extract-audio.sh <input_video> <output_dir> [whisper_model] [start_time] [end_time]}"
 OUTPUT_DIR="${2:?Specify output directory}"
 MODEL="${3:-base}"  # tiny|base|small|medium|large
+START_TIME="${4:-}"  # e.g., "00:00:10" or "10" (seconds)
+END_TIME="${5:-}"    # e.g., "00:00:30" or "30" (seconds)
+
+is_time_value() {
+    [[ "$1" =~ ^[0-9]+$ || "$1" =~ ^[0-9]+:[0-5]?[0-9]$ || "$1" =~ ^[0-9]+:[0-5]?[0-9]:[0-5]?[0-9]$ ]]
+}
+
+time_to_seconds() {
+    local value="$1"
+    local first second third
+    IFS=: read -r first second third <<< "$value"
+
+    if [[ -z "${second:-}" ]]; then
+        echo "$((10#$first))"
+    elif [[ -z "${third:-}" ]]; then
+        echo "$((10#$first * 60 + 10#$second))"
+    else
+        echo "$((10#$first * 3600 + 10#$second * 60 + 10#$third))"
+    fi
+}
 
 # Validate input
 if [[ ! -f "$INPUT" ]]; then
@@ -17,11 +40,46 @@ if [[ ! -f "$INPUT" ]]; then
     exit 1
 fi
 
+if [[ -n "$START_TIME" ]] && ! is_time_value "$START_TIME"; then
+    echo "ERROR: Invalid start_time format: $START_TIME" >&2
+    exit 1
+fi
+
+if [[ -n "$END_TIME" ]] && ! is_time_value "$END_TIME"; then
+    echo "ERROR: Invalid end_time format: $END_TIME" >&2
+    exit 1
+fi
+START_SECONDS=0
+if [[ -n "$START_TIME" ]]; then
+    START_SECONDS=$(time_to_seconds "$START_TIME")
+fi
+END_SECONDS=""
+if [[ -n "$END_TIME" ]]; then
+    END_SECONDS=$(time_to_seconds "$END_TIME")
+fi
+if [[ -n "$END_SECONDS" && "$END_SECONDS" -le "$START_SECONDS" ]]; then
+    echo "ERROR: end_time must be greater than start_time" >&2
+    exit 1
+fi
+
+# The seek goes before -i, which is fast and exact for audio, and the length
+# after it. Both are expanded as ${X[@]+...}, because macOS's /bin/bash 3.2
+# calls an empty array unbound under set -u.
+SEEK_ARGS=()
+LENGTH_ARGS=()
+if [[ "$START_SECONDS" -gt 0 ]]; then
+    SEEK_ARGS=("-ss" "$START_SECONDS")
+fi
+if [[ -n "$END_SECONDS" ]]; then
+    LENGTH_ARGS=("-t" "$((END_SECONDS - START_SECONDS))")
+fi
+
 mkdir -p "$OUTPUT_DIR"
 
 echo "=== Audio Extraction ==="
 echo "Input: $INPUT"
 echo "Model: $MODEL"
+echo "Range: ${START_SECONDS}s to ${END_SECONDS:-end}"
 
 # Get audio stream info
 AUDIO_INFO=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,sample_rate,channels,bit_rate -of json "$INPUT" 2>/dev/null)
@@ -31,7 +89,8 @@ echo "Audio info: $AUDIO_INFO"
 AUDIO_FILE="${OUTPUT_DIR}/audio.wav"
 echo ""
 echo "Extracting audio to WAV (16kHz mono)..."
-ffmpeg -i "$INPUT" \
+ffmpeg ${SEEK_ARGS[@]+"${SEEK_ARGS[@]}"} -i "$INPUT" \
+    ${LENGTH_ARGS[@]+"${LENGTH_ARGS[@]}"} \
     -vn \
     -acodec pcm_s16le \
     -ar 16000 \
@@ -48,6 +107,21 @@ SILENCE_FILE="${OUTPUT_DIR}/silence.txt"
 ffmpeg -i "$AUDIO_FILE" \
     -af "silencedetect=noise=-30dB:d=0.5" \
     -f null - 2>&1 | grep -E "silence_(start|end)" > "$SILENCE_FILE" || true
+
+# silencedetect counts from the start of the cut, so the range's start is
+# added back to read as a position in the video.
+if [[ "$START_SECONDS" -gt 0 && -s "$SILENCE_FILE" ]]; then
+    python3 - "$SILENCE_FILE" "$START_SECONDS" <<'PY'
+import re, sys
+path, start = sys.argv[1], float(sys.argv[2])
+with open(path) as f:
+    lines = f.readlines()
+with open(path, "w") as f:
+    for line in lines:
+        f.write(re.sub(r"(silence_(?:start|end): )(-?[0-9.]+)",
+                       lambda m: f"{m.group(1)}{float(m.group(2)) + start:.3f}", line))
+PY
+fi
 
 if [[ -s "$SILENCE_FILE" ]]; then
     echo "Silence segments detected (see ${SILENCE_FILE}):"
@@ -89,7 +163,8 @@ if [[ ( -n "${GROQ_API_KEY:-}" || -n "${GROQ_BASE_URL:-}" ) && -x "$TRANSCRIBE" 
     esac
 
     echo "=== Transcription (Groq, $MODEL -> $HOSTED_MODEL) ==="
-    "$TRANSCRIBE" "$AUDIO_FILE" --model "$HOSTED_MODEL" --format all --out "$OUTPUT_DIR"
+    "$TRANSCRIBE" "$AUDIO_FILE" --model "$HOSTED_MODEL" --format all --out "$OUTPUT_DIR" \
+        --offset "$START_SECONDS"
 
     echo "Transcription complete. Output files:"
     ls -la "${OUTPUT_DIR}"/audio.{txt,json,srt,vtt} 2>/dev/null || true
@@ -101,6 +176,26 @@ elif command -v whisper &>/dev/null; then
         --output_format all \
         --verbose False \
         2>&1
+
+    # The CLI has no offset of its own, so the range's start is added to
+    # audio.json, the file the audio agent reads. Its srt, vtt and tsv keep
+    # counting from the start of the cut.
+    if [[ "$START_SECONDS" -gt 0 ]]; then
+        python3 - "${OUTPUT_DIR}/audio.json" "$START_SECONDS" <<'PY'
+import json, sys
+path, start = sys.argv[1], float(sys.argv[2])
+with open(path) as f:
+    data = json.load(f)
+for segment in data.get("segments", []):
+    segment["start"] += start
+    segment["end"] += start
+    for word in segment.get("words", []):
+        word["start"] += start
+        word["end"] += start
+with open(path, "w") as f:
+    json.dump(data, f, ensure_ascii=False)
+PY
+    fi
 
     echo "Transcription complete. Output files:"
     ls -la "${OUTPUT_DIR}"/audio.{txt,json,srt,vtt,tsv} 2>/dev/null || true
@@ -119,6 +214,8 @@ cat > "${OUTPUT_DIR}/audio_metadata.json" <<EOF
   "whisper_model": "$MODEL",
   "silence_file": "$SILENCE_FILE",
   "volume_file": "$VOLUME_FILE",
+  "start_seconds": $START_SECONDS,
+  "end_seconds": ${END_SECONDS:-null},
   "sample_rate": 16000,
   "channels": 1
 }
