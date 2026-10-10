@@ -61,7 +61,7 @@ bash ${CLAUDE_SKILL_DIR}/scripts/extract-audio.sh "<video_path>" "<work_dir>/aud
 
 A time range goes to the audio too, so only that stretch is transcribed. Its transcript and silence timestamps are positions in the whole video, the same clock the frames have burned in.
 
-When custom fps is set, tier becomes `custom` and the 1000-frame safety cap applies.
+When custom fps is set, tier becomes `custom` and the 1000-frame safety cap applies. A rate that would pass 1000 frames is lowered so the 1000 reach the end of the range, and `tier_description` says so. Tell the user the rate that was used.
 
 ## Workflow
 
