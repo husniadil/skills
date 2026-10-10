@@ -23,6 +23,8 @@ another agent, use the directory this SKILL.md was loaded from.
 | `--language <code>` | ISO code such as `en` or `id`. Left off, the model detects it. |
 | `--prompt <text>` | Names, product words or spellings to bias the decoder. |
 | `--out <path>` | Write there instead of stdout. A directory when `--format` is `all`. |
+| `--offset <seconds>` | Add this to every timestamp, for audio cut from a longer recording, so the times read as positions in the original. Default `0`. |
+| `--max-wait <seconds>` | How long a chunk may wait out Groq's `retry-after` after a 429 before it goes to OpenAI. `0` never waits. Default `300`. |
 | `--keep-work` | Leave the temporary directory for inspection. |
 
 Progress goes to stderr, the transcript to stdout, so a redirect captures only
@@ -72,10 +74,17 @@ credential for `api.groq.com`, set `GROQ_BASE_URL=https://api.groq.com`.
 `OPENAI_BASE_URL` does the same for the fallback. Either falls back to the
 provider's own host when unset.
 
-`OPENAI_API_KEY` or `OPENAI_BASE_URL` enables the fallback. A chunk that Groq answers with 429 or
-a 5xx is retried against OpenAI's `whisper-1`, which speaks the same wire
-shape. A 4xx that is not 429 is our own request, so it fails rather than
-spending money to fail again elsewhere.
+A 429 from Groq is waited out first. It carries `retry-after` in seconds, and
+because Groq's audio quota is a rolling hour the wait is short even when the
+hour is spent: 75 seconds in a measured case. The chunk sleeps that long and
+tries Groq again, for as long as its waits add up to no more than
+`--max-wait`.
+
+`OPENAI_API_KEY` or `OPENAI_BASE_URL` enables the fallback. A chunk goes to
+OpenAI's `whisper-1`, which speaks the same wire shape, when Groq answers a
+5xx, or a 429 asking for a longer wait than the chunk has left, or a 429 with
+no `retry-after`. A 4xx that is not 429 is our own request, so it fails
+rather than spending money to fail again elsewhere.
 
 ## Choosing this over a local model
 

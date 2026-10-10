@@ -24,6 +24,12 @@ Options:
   --prompt <text>                   Names, jargon or spelling to bias it.
   --out <path>                      Write here instead of stdout. A directory
                                     when --format is all.
+  --offset <seconds>                Add this to every timestamp, for audio cut
+                                    from a longer recording, so the times read
+                                    as positions in the original. Default: 0.
+  --max-wait <seconds>              How long a chunk may wait on Groq's
+                                    retry-after after a 429 before it goes to
+                                    OpenAI instead. 0 never waits. Default: 300.
   --keep-work                       Leave the temporary directory in place.
 
 Needs GROQ_API_KEY (or GROQ_BASE_URL naming a proxy that holds it), ffmpeg,
@@ -38,6 +44,8 @@ model="whisper-large-v3-turbo"
 language=""
 prompt=""
 out=""
+offset_base=0
+max_wait=300
 keep_work=0
 
 while [[ $# -gt 0 ]]; do
@@ -53,6 +61,8 @@ while [[ $# -gt 0 ]]; do
     --language) language="$2"; shift 2 ;;
     --prompt) prompt="$2"; shift 2 ;;
     --out) out="$2"; shift 2 ;;
+    --offset) offset_base="$2"; shift 2 ;;
+    --max-wait) max_wait="$2"; shift 2 ;;
     --keep-work) keep_work=1; shift ;;
     -h|--help) usage; exit 0 ;;
     -*) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
@@ -63,6 +73,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "$input" ]] || { usage >&2; exit 2; }
+[[ "$offset_base" =~ ^[0-9]+([.][0-9]+)?$ ]] \
+  || { echo "--offset must be a non-negative number of seconds: $offset_base" >&2; exit 2; }
+[[ "$max_wait" =~ ^[0-9]+$ ]] \
+  || { echo "--max-wait must be a whole number of seconds: $max_wait" >&2; exit 2; }
 
 # Where the two providers are reached. A proxy that holds the key at its own
 # edge (an exe.dev integration, a gateway of your own) is given here instead,
@@ -205,12 +219,13 @@ print(max(os.path.getsize(p) for p in glob.glob(os.path.join(sys.argv[1], 'part-
 done
 
 # One chunk to one provider. Prints the HTTP status so the caller decides
-# whether the failure is worth falling back over.
+# whether the failure is worth falling back over. The headers land beside the
+# response, for the retry-after a 429 carries.
 post() {
   local endpoint="$1" key="$2" post_model="$3" chunk="$4" target="$5"
   # -S keeps curl's own error on a failed connection. With -s alone the
   # script exits on curl's status without a word.
-  local args=(-sS -w '%{http_code}' -X POST "$endpoint"
+  local args=(-sS -w '%{http_code}' -D "$target.headers" -X POST "$endpoint"
               -F "file=@$chunk"
               -F "model=$post_model"
               -F "response_format=verbose_json"
@@ -230,12 +245,36 @@ for chunk in "$work"/chunks/part-*.flac; do
   echo "Transcribing chunk ${index} of ${chunk_count}…" >&2
 
   response="$work/response-$index.json"
-  status="$(post "$groq_base/openai/v1/audio/transcriptions" \
-                 "${GROQ_API_KEY:-}" "$model" "$chunk" "$response")"
+  # A 429 says in retry-after how long Groq's window needs. Its audio quota is
+  # a rolling hour, so the wait is short even when the hour is spent: 75s for
+  # 558 seconds of audio with 408 left (measured). Waiting that out is cheaper
+  # than OpenAI, as long as this chunk's waits stay within --max-wait.
+  waited=0
+  while :; do
+    status="$(post "$groq_base/openai/v1/audio/transcriptions" \
+                   "${GROQ_API_KEY:-}" "$model" "$chunk" "$response")"
+    [[ "$status" == "429" ]] || break
+    retry_after="$(python3 -c "
+import math, re, sys
+value = ''
+for line in open(sys.argv[1], encoding='latin-1'):
+    name, _, rest = line.partition(':')
+    if name.strip().lower() == 'retry-after':
+        value = rest.strip()
+print(math.ceil(float(value)) if re.fullmatch(r'[0-9]+(\.[0-9]+)?', value) else '')
+" "$response.headers")"
+    if [[ -z "$retry_after" ]] || (( waited + retry_after > max_wait )); then
+      break
+    fi
+    echo "Groq answered 429 and asked for ${retry_after}s. Waiting…" >&2
+    sleep "$retry_after"
+    waited=$((waited + retry_after))
+  done
 
   # 429 is the quota, 5xx is their side. Either is worth the costlier
-  # provider. A 4xx that is not 429 is our own request, and retrying it
-  # somewhere else would just fail again.
+  # provider, a 429 only once Groq asks for a longer wait than is left. A 4xx
+  # that is not 429 is our own request, and retrying it somewhere else would
+  # just fail again.
   if [[ "$status" == "429" || "$status" =~ ^5 ]] \
      && [[ -n "${OPENAI_API_KEY:-}" || -n "${OPENAI_BASE_URL:-}" ]]; then
     echo "Groq answered $status, falling back to OpenAI…" >&2
@@ -256,10 +295,10 @@ echo "$chunk_seconds" > "$work/step.txt"
 echo "$chunk_count" > "$work/count.txt"
 
 render() {
-  python3 - "$work" "$1" <<'PY'
+  python3 - "$work" "$1" "$offset_base" <<'PY'
 import json, os, sys
 
-work, fmt = sys.argv[1], sys.argv[2]
+work, fmt, base = sys.argv[1], sys.argv[2], float(sys.argv[3])
 
 with open(os.path.join(work, "step.txt")) as f:
     step = float(f.read().strip())
@@ -302,6 +341,12 @@ for index in range(1, count + 1):
             "end": segment["end"] + offset,
             "text": segment["text"].strip(),
         })
+
+# --offset moves the whole transcript once the seams are settled, so the
+# chunk arithmetic above stays in the cut's own time.
+for s in segments:
+    s["start"] += base
+    s["end"] += base
 
 text = " ".join(s["text"] for s in segments if s["text"])
 
