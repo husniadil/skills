@@ -123,9 +123,12 @@ with open(path, "w") as f:
 PY
 fi
 
+# Only a count and the first few are printed. A long video has thousands of
+# lines here, and all of them landed in the context of the agent running this.
+SILENCE_COUNT=$(grep -c "silence_start" "$SILENCE_FILE" || true)
 if [[ -s "$SILENCE_FILE" ]]; then
-    echo "Silence segments detected (see ${SILENCE_FILE}):"
-    cat "$SILENCE_FILE"
+    echo "Silence segments detected: $SILENCE_COUNT, all in ${SILENCE_FILE}. The first ones:"
+    head -n 10 "$SILENCE_FILE"
 else
     echo "No significant silence detected"
 fi
@@ -213,6 +216,7 @@ cat > "${OUTPUT_DIR}/audio_metadata.json" <<EOF
   "audio_file": "$AUDIO_FILE",
   "whisper_model": "$MODEL",
   "silence_file": "$SILENCE_FILE",
+  "silence_segments": $SILENCE_COUNT,
   "volume_file": "$VOLUME_FILE",
   "start_seconds": $START_SECONDS,
   "end_seconds": ${END_SECONDS:-null},
