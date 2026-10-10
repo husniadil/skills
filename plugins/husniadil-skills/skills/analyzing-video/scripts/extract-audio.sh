@@ -16,6 +16,11 @@ MODEL="${3:-base}"  # tiny|base|small|medium|large
 START_TIME="${4:-}"  # e.g., "00:00:10" or "10" (seconds)
 END_TIME="${5:-}"    # e.g., "00:00:30" or "30" (seconds)
 
+# Quoted for JSON, so a name with " or \ in it still makes valid metadata.
+json_string() {
+    python3 -c 'import json, sys; print(json.dumps(sys.argv[1]))' "$1"
+}
+
 is_time_value() {
     [[ "$1" =~ ^[0-9]+$ || "$1" =~ ^[0-9]+:[0-5]?[0-9]$ || "$1" =~ ^[0-9]+:[0-5]?[0-9]:[0-5]?[0-9]$ ]]
 }
@@ -156,22 +161,34 @@ echo ""
 # The skill beside this one, wherever the two are installed.
 TRANSCRIBE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/transcribe-audio/scripts/transcribe.sh"
 
+# What actually transcribed, for audio_metadata.json. The model asked for is
+# a local whisper name, and the hosted path runs a different one.
+TRANSCRIBER="none"
+TRANSCRIPTION_MODEL=""
+OPENAI_FALLBACK_CHUNKS=0
+
 # A GROQ_BASE_URL proxy holds the key at its own edge, so no key is set here.
 if [[ ( -n "${GROQ_API_KEY:-}" || -n "${GROQ_BASE_URL:-}" ) && -x "$TRANSCRIBE" ]]; then
     # This script speaks whisper's five model names. Groq has two, so the
     # small ones map to turbo and the big ones to large-v3.
     case "$MODEL" in
-        tiny|base|small) HOSTED_MODEL="turbo" ;;
-        *) HOSTED_MODEL="large" ;;
+        tiny|base|small) HOSTED_MODEL="turbo"; TRANSCRIPTION_MODEL="whisper-large-v3-turbo" ;;
+        *) HOSTED_MODEL="large"; TRANSCRIPTION_MODEL="whisper-large-v3" ;;
     esac
+    TRANSCRIBER="groq"
 
     echo "=== Transcription (Groq, $MODEL -> $HOSTED_MODEL) ==="
+    # Its progress is kept in transcribe.log as well, to count the chunks
+    # that Groq refused and OpenAI's whisper-1 transcribed instead.
     "$TRANSCRIBE" "$AUDIO_FILE" --model "$HOSTED_MODEL" --format all --out "$OUTPUT_DIR" \
-        --offset "$START_SECONDS"
+        --offset "$START_SECONDS" 2>&1 | tee "${OUTPUT_DIR}/transcribe.log"
+    OPENAI_FALLBACK_CHUNKS=$(grep -c "falling back to OpenAI" "${OUTPUT_DIR}/transcribe.log" || true)
 
     echo "Transcription complete. Output files:"
     ls -la "${OUTPUT_DIR}"/audio.{txt,json,srt,vtt} 2>/dev/null || true
 elif command -v whisper &>/dev/null; then
+    TRANSCRIBER="local-whisper"
+    TRANSCRIPTION_MODEL="$MODEL"
     echo "=== Transcription (local Whisper $MODEL) ==="
     whisper "$AUDIO_FILE" \
         --model "$MODEL" \
@@ -212,12 +229,14 @@ fi
 # Write audio metadata
 cat > "${OUTPUT_DIR}/audio_metadata.json" <<EOF
 {
-  "source": "$(basename "$INPUT")",
-  "audio_file": "$AUDIO_FILE",
-  "whisper_model": "$MODEL",
-  "silence_file": "$SILENCE_FILE",
+  "source": $(json_string "$(basename "$INPUT")"),
+  "audio_file": $(json_string "$AUDIO_FILE"),
+  "transcriber": "$TRANSCRIBER",
+  "whisper_model": $([[ -n "$TRANSCRIPTION_MODEL" ]] && json_string "$TRANSCRIPTION_MODEL" || echo null),
+  "openai_fallback_chunks": $OPENAI_FALLBACK_CHUNKS,
+  "silence_file": $(json_string "$SILENCE_FILE"),
   "silence_segments": $SILENCE_COUNT,
-  "volume_file": "$VOLUME_FILE",
+  "volume_file": $(json_string "$VOLUME_FILE"),
   "start_seconds": $START_SECONDS,
   "end_seconds": ${END_SECONDS:-null},
   "sample_rate": 16000,

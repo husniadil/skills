@@ -4,11 +4,17 @@ Only non-obvious details. Claude knows how to use Whisper.
 
 ## Which transcriber runs
 
-`extract-audio.sh` picks this itself. With `GROQ_API_KEY` set it calls the
+`extract-audio.sh` picks this itself. With `GROQ_API_KEY` set, or
+`GROQ_BASE_URL` naming a proxy that holds the key, it calls the
 `transcribe-audio` skill, which decodes on Groq's servers and writes the same
-`audio.{txt,srt,vtt,json}` into the output directory. Without the key it falls
+`audio.{txt,srt,vtt,json}` into the output directory. Without either it falls
 back to the local `whisper` CLI. Do not install a local model to make
 transcription work. Set the key.
+
+`audio_metadata.json` records what ran: `transcriber` is `groq`,
+`local-whisper` or `none`, `whisper_model` is the model that transcribed, and
+`openai_fallback_chunks` counts the chunks Groq refused that went to OpenAI's
+`whisper-1` instead.
 
 The hosted path has two models. The five Whisper model names below are mapped
 onto them: `tiny`, `base` and `small` become `whisper-large-v3-turbo`, and
