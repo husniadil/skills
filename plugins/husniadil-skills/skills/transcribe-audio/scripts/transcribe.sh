@@ -113,8 +113,25 @@ if [[ "$input" == http://* || "$input" == https://* ]]; then
   # landed rather than from a second call that could answer differently or
   # fail on its own.
   mkdir -p "$work/media"
-  yt-dlp -q --no-warnings -f bestaudio -x --audio-format flac \
-    --restrict-filenames -o "$work/media/%(title)s.%(ext)s" "$input"
+  fetch() {
+    yt-dlp -q --no-warnings -f "$1" -x --audio-format flac \
+      --restrict-filenames -o "$work/media/%(title)s.%(ext)s" "$input" \
+      2> "$work/yt-dlp.err"
+  }
+  # YouTube can refuse a video's DASH streams with 403 while its HLS streams
+  # download fine: one video's 399+140 and 299+140 were refused and its
+  # 312+234 was not (measured). bestaudio picks DASH, so a 403 there is tried
+  # again on the HLS audio. Any other failure is reported as it came.
+  if ! fetch bestaudio; then
+    if grep -q "HTTP Error 403" "$work/yt-dlp.err"; then
+      echo "The DASH audio answered 403. Trying the HLS audio…" >&2
+      rm -rf "$work/media"/*
+      fetch "ba[protocol^=m3u8]" || { cat "$work/yt-dlp.err" >&2; exit 1; }
+    else
+      cat "$work/yt-dlp.err" >&2
+      exit 1
+    fi
+  fi
   source_file="$(find "$work/media" -name '*.flac' -maxdepth 1 | head -1)"
   [[ -n "$source_file" ]] || { echo "yt-dlp produced no audio" >&2; exit 1; }
   stem="$(basename "$source_file")"; stem="${stem%.*}"
@@ -360,10 +377,14 @@ if fmt == "json":
     print(json.dumps({"text": text, "segments": segments}, ensure_ascii=False, indent=2))
     raise SystemExit
 
+# Rounded to whole milliseconds before it is split, so a fraction of .9995 or
+# more carries into the next second. Rounding only the fraction printed
+# 1.9996 as 00:00:01,1000.
 def stamp(seconds, sep):
-    hours, rest = divmod(seconds, 3600)
-    minutes, secs = divmod(rest, 60)
-    return f"{int(hours):02d}:{int(minutes):02d}:{int(secs):02d}{sep}{int(round((secs % 1) * 1000)):03d}"
+    hours, rest = divmod(int(round(seconds * 1000)), 3_600_000)
+    minutes, rest = divmod(rest, 60_000)
+    secs, millis = divmod(rest, 1000)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}{sep}{millis:03d}"
 
 if fmt == "vtt":
     print("WEBVTT\n")
