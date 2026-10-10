@@ -131,9 +131,10 @@ Two ways round it, cheapest first:
 
 5. **Report** the saved file path and line count to the user.
 
-6. **Clean up** the intermediate VTT file:
+6. **Clean up** the intermediate VTT file. Step 3 names it
+   `<title> [<id>].<lang>.vtt`, so the ID sits in the middle:
    ```bash
-   rm ~/transcripts/{VIDEO_ID}.*.vtt
+   rm ~/transcripts/*{VIDEO_ID}*.vtt
    ```
 
 ## Output
