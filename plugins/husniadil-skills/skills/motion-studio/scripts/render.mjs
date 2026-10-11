@@ -469,10 +469,17 @@ if (withAudio) {
     }
     // what the limiter took off the hottest peak: where it would have been after the gain, less where it ended up
     const took = Math.max(0, before.TP + applied - after.TP);
-    console.log(`audio: rendered ${before.I.toFixed(1)} LUFS, ${before.TP.toFixed(1)} dBTP -> ${after.I.toFixed(1)} LUFS, ${after.TP.toFixed(1)} dBTP (gain ${applied.toFixed(1)} dB, limiter took ${took.toFixed(1)} dB at the hottest peak, ${Math.min(pass + 1, 3)} pass${pass ? 'es' : ''})`);
+    console.log(`audio: rendered ${before.I.toFixed(1)} LUFS, ${before.TP.toFixed(1)} dBTP -> ${after.I.toFixed(1)} LUFS, ${after.TP.toFixed(1)} dBTP (gain ${applied.toFixed(1)} dB in the last pass, limiter took ${took.toFixed(1)} dB at the hottest peak, ${Math.min(pass + 1, 3)} pass${pass ? 'es' : ''})`);
     const tame = `tame it in the score: spread its energy over a longer decay, or lower --lufs for a few hits alone (sound.md, Balance)`;
-    if (took > 6) failures.push(`audio: the limiter took ${took.toFixed(1)} dB off the hottest peak, over 6 dB, which flattens that hit: ${tame}`);
-    else if (took > 3) console.warn(`warning: the limiter took ${took.toFixed(1)} dB off the hottest peak, which flattens that hit: ${tame}`);
+    // which hit that is: the score's loudest sample, read as the hit that peaks there ((F + 1) / fps, sound.md, Timing)
+    const hottest = () => {
+      const x = new Float32Array(Uint8Array.from(spawnSync('ffmpeg', ['-v', 'error', '-i', raw, '-f', 'f32le', '-ac', '2', '-ar', '48000', '-'], { maxBuffer: 2 ** 31 }).stdout).buffer);
+      let m = 0, k = 0; for (let i = 0; i < x.length; i++) { const v = Math.abs(x[i]); if (v > m) { m = v; k = i; } }
+      const s = Math.floor(k / 2) / 48000, f = Math.max(0, Math.round(s * fps) - 1);
+      return TRACK ? `the peak at ${s.toFixed(3)} s (a hit on frame ${f}, or the song)` : `the hit on frame ${f} (its peak at ${s.toFixed(3)} s)`;
+    };
+    if (took > 6) failures.push(`audio: the limiter took ${took.toFixed(1)} dB off the hottest peak, over 6 dB, which flattens ${hottest()}: ${tame}`);
+    else if (took > 3) console.warn(`warning: the limiter took ${took.toFixed(1)} dB off the hottest peak, which flattens ${hottest()}: ${tame}`);
     // the payoff: the loudest 100 ms window of the mix, and the longest run of windows at -40 dBFS or under in the 2 s before it
     const mix = spawnSync('ffmpeg', ['-v', 'error', '-i', wav, '-f', 'f32le', '-ac', '2', '-'], { maxBuffer: 2 ** 31 }).stdout;
     const pcm = new Float32Array(Uint8Array.from(mix).buffer), win = 4800 * 2, db = [];

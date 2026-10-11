@@ -23,7 +23,7 @@ What makes the next thing happen decides how the piece gets from one thing to th
 | Process loop | the true making steps on one locked framing: the finished thing, back to blank, rebuilt | one framing, one dissolve | fast early steps (about 1.3 s), long near-still holds late; the last frame is frame 0 | studied only |
 | Machine | a token through stations, each doing one thing to it | one big drawing, about 1 s eased pans between stations, a zoom out over the whole layout in the last 4 to 7 s | even stations of 7 to 9 s, or 2 to 7 s with a voice | studied only |
 
-- A path (stations, a machine) gets one travelling camera and no cuts.
+- A path where one thing is worked on station by station (the machine) gets one travelling camera and no cuts. A journey through many places (the fixed-hero journey) cuts on the beat, and the hero keeps its spot on screen across the cuts.
 - Time passing is joined from inside the scene: a morph or a draw-off.
 - Several places or people, or a list, cut on the beat grid (numbers.md, The beat grid).
 - A voice takes the clock: the picture changes on sentence ends, and music sits under it (narration.md).
