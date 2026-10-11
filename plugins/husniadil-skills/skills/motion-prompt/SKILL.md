@@ -12,7 +12,7 @@ A model makes motion by writing a program that draws frames. Every frame is a fu
 
 ## Procedure
 
-1. **Read the request and infer.** Ask only what changes the result, in one AskUserQuestion call with the recommended option first: what the viewer should feel or do, where it goes (the canvas, from [references/delivery.md](references/delivery.md)), how long and whether it loops, and the engine. Unanswered, use 1080x1080, 6 s, a seamless loop, 30 fps, 120 BPM, plain HTML for 2D and three.js for 3D, and no sound, and say which defaults you picked. When the user brings a reference clip, measure it first ([references/review.md](references/review.md), A reference clip) and write the prompt from what it decides.
+1. **Read the request and infer.** Ask only what changes the result, in one AskUserQuestion call with the recommended option first: what the viewer should feel or do, where it goes (the canvas, from [references/delivery.md](references/delivery.md)), how long and whether it loops, and the engine. Unanswered, use 1080x1080, 6 s, a seamless loop (a one-shot when the piece ends on an end card or a call to action), 30 fps, 120 BPM, plain HTML for 2D and three.js for 3D, and no sound, and say which defaults you picked. When the user brings a reference clip, measure it first ([references/review.md](references/review.md), A reference clip) and write the prompt from what it decides.
 2. **Pick the engine** with [references/engines.md](references/engines.md) and put it in OUTPUT with its version and size. An engine the prompt doesn't name is the model's choice.
 3. **Fill the template** below with numbers from [references/numbers.md](references/numbers.md). Replace each adjective in the request with what it means: "premium" becomes the materials, a key, fill and rim light, ease-out-quint entrances and springs at a damping ratio of 0.8.
 4. **Write BANNED** from the list below, plus what this subject invites (a crypto brief invites neon, a product brief a spinning turntable).
@@ -39,7 +39,7 @@ For 3D add **MODEL** (sizes in one unit, primitives, bevels, what must keep its 
 - **SHOTS is where the story is.** Each shot gets a frame range, one hero move, and a handoff: a cut on the beat, a match cut where one shape becomes the next, or a mask wipe. Default to the cut. A transition is a decision.
 - **Rank everything else under the hero:** secondary moves travel 50 to 70% of the hero's distance and start 100 to 200 ms after it; ambient motion stays under 5% of the hero's travel, on a slow sine, and never stops.
 - **Name what must not change** when there is a character or a logo ("the mascot keeps its 14x10 body, 3x2 arms and 2x3 eyes"). That line keeps it recognizable.
-- **Size text for its longest copy.** Give LOOK each text box's position, width and line limit, and render the landing frame with the longest copy the piece will carry (a longer product name, a translation). Past the limit, shorten the copy, widen the box or give the line its own shot, before any motion work.
+- **Size text for its longest copy.** Give LOOK each text box's position, width, line limit and size (text the viewer must read is at least 36 px at 1080 wide, numbers.md, Text size on a phone), and render the landing frame with the longest copy the piece will carry (a longer product name, a translation). Past the limit, shorten the copy, widen the box or give the line its own shot, before any motion work.
 
 ### Banned defaults
 
@@ -63,6 +63,7 @@ Paste this under the prompt. Each line closes one way a render goes wrong: a clo
 Render contract:
 - One self-contained HTML file. Only the libraries named above, pinned to an exact version. No other network requests.
 - Fonts: embed the font file in @font-face as a base64 data URI, subset to the glyphs the piece uses, or name a system font with its fallbacks, which renders differently on a machine without it.
+- A variant of the copy (another language, a longer name) is chosen by a URL parameter such as ?lang=id, read once at load.
 - Every frame is a pure function of t in seconds. Expose window.renderAt(t), which draws exactly that frame (CSS or Web Animations API animations may drive motion instead; they are paused and seeked to t).
 - With ?t= in the URL, start no requestAnimationFrame loop and no timer. Without it, play in real time for preview: one requestAnimationFrame loop calls renderAt with its timestamp, in seconds since the first frame, wrapped at the length of the piece. That loop is the only clock in the file.
 - No Date.now, performance.now, setTimeout or setInterval for motion, and no unseeded Math.random: seed every random from a fixed key.
@@ -92,15 +93,16 @@ It needs Node 18+, Playwright with Chromium, and ffmpeg. It resolves Playwright 
 
 | Option | What it does |
 |---|---|
+| `'piece.html?lang=id'` | A variant: the query reaches the page and the output goes to `out/piece-lang-id/`. Quote it, since the shell reads `?` as a wildcard. |
 | `--seconds S` | Required. The length; frames = seconds x fps. |
 | `--fps 30` | Frame rate, default 30. |
 | `--size 1080x1080` | The viewport, default 1080x1080. Width and height must be even. |
 | `--frames 0,24,48` | Stills only: those frames and a labelled `stills.png`. The fast loop while building. It takes no `--loop` or `--audio`. |
-| `--loop` | Checks that frame N matches frame 0, that no frame is held at the seam, and that the seam is not a jump bigger than every step inside. Full renders only. |
+| `--loop` | Checks that frame N matches frame 0, that no frame is held at the seam, and that the seam is not a jump bigger than every step inside. Full renders of a loop only: leave it off a piece that ends on a card. |
 | `--blur 4` | Motion blur: 4 sub-frames over half a frame (a 180-degree shutter), averaged in linear light. For 3D and fast moves. |
 | `--ss 2` | Supersampling: renders at twice the pixel density and averages each 2x2 block in linear light, for clean edges on shaders and text. Costs 4x the screenshots, times `--blur`. |
 | `--gpu` | WebGL on the real GPU, and prints which renderer ran (a software renderer is correct, only slower). |
-| `--audio` | Renders `window.renderAudio()`, brings it to -14 LUFS under a -2 dBTP true-peak limiter, muxes it, and measures the decoded MP4. |
+| `--audio` | Renders `window.renderAudio()`, brings it to -14 LUFS under a -2 dBTP true-peak limiter in up to three passes, prints what the limiter took off the hottest peak (a warning above 3 dB), muxes it, and measures the decoded MP4. |
 | `--audio-only` | The same audio pass over frames already rendered, to iterate the mix. |
 | `--gif`, `--gif-fps 24` | A GIF with one palette, resampled to `--gif-fps` (default 24) and sized within X's limits. |
 | `--out dir` | Default `out/<name>/`. |
@@ -113,4 +115,4 @@ Remotion and HyperFrames render with their own CLIs (engines.md); this skill wri
 
 ## Where this comes from
 
-The approach and most numbers come from a published lab notebook of three Claude Opus 5.5 pieces, a ray-marched chrome title loop, an A/B product film and a voxel mascot, each printed with its prompt and every follow-up (@flxrnc on X, 2026-09-30). The claims that could go stale were checked against primary sources on 2026-10-11, and each reference file names its sources. `render.mjs` was tested on CSS, Canvas 2D and WebGL on a GPU, on loops that close, close a frame early, overshoot their period and jump at the seam, on sub-frame blur (one white and one black sub-frame average to 188, the linear-light mean), on supersampling (a hard-edged shader gains anti-aliased edges at `--ss 2`), and on a peaky synthesized score (-14.7 LUFS and -1.7 dBTP decoded, hits within 4 samples of their place). Three end-to-end runs on Claude Haiku 5.5 built a ray-marched chrome title loop from the same one-paragraph brief with this skill and passed every check; what they struggled with is folded into these files.
+The approach and most numbers come from a published lab notebook of three Claude Opus 5.5 pieces, a ray-marched chrome title loop, an A/B product film and a voxel mascot, each printed with its prompt and every follow-up (@flxrnc on X, 2026-09-30). The claims that could go stale were checked against primary sources on 2026-10-11, and each reference file names its sources. `render.mjs` was tested on CSS, Canvas 2D and WebGL on a GPU, on loops that close, close a frame early, overshoot their period and jump at the seam, on sub-frame blur (one white and one black sub-frame average to 188, the linear-light mean), on supersampling (a hard-edged shader gains anti-aliased edges at `--ss 2`), and on a peaky synthesized score (-14.7 LUFS and -1.7 dBTP decoded, hits within 4 samples of their place). Three end-to-end runs on Claude Haiku 5.5 built a ray-marched chrome title loop from the same one-paragraph brief with this skill, and a fourth built a 20-second UI launch clip with sound and an Indonesian headline; all passed every check, and what they struggled with is folded into these files.

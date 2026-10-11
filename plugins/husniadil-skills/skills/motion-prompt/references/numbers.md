@@ -85,8 +85,16 @@ When a beat isn't a whole number of frames, compute beat n at `n * 60 / BPM` sec
 ## Holds
 
 - On-screen text stays at least 0.3 s per word plus 0.5 s: a two-word title needs 1.1 s.
-- During a hold, a slow 2% push keeps the frame alive while the words stay put.
+- During a hold, a slow 2% push on the image behind the words keeps the frame alive; the words themselves stay still.
 - Push key poses 10 to 30% further than feels right: the feed shrinks everything.
+
+## Text size on a phone
+
+A feed shows a square post about 330 to 390 pt wide on a phone (a screen's width, less any margin: an estimate, not a measurement), so 1 pt is about 3 px of a 1080 frame. Apple's guidelines put the minimum text size on iOS at 11 pt and the default at 17 pt (Human Interface Guidelines, Typography, checked 2026-10-11).
+
+- Text the viewer must read: at least 36 px at 1080 wide (11 pt at the narrow end). Body-like text reads comfortably from about 56 px (17 pt).
+- A product screen shrunk into a card takes its labels below that: in the fourth end-to-end test they were 16 to 24 px. Crop to the part of the screen that matters and scale it up until the labels the viewer must read reach 36 px, or leave them as texture and say the words in a headline.
+- Scale for other widths: at 1920 wide, multiply by 1920 / 1080.
 
 ## A product action (UI)
 
@@ -98,7 +106,7 @@ A UI shot is an event the viewer can follow: the starting state, the cursor reac
 | Press | scale 1 to 0.92 over 3 frames, back to 1 over 6 |
 | The control responds | on the press frame |
 | Cursor leaves for a resting point | starts 9 frames after the press, takes 18 |
-| The result appears | 15 frames after the press, readable 24 frames later |
+| The result appears | its reveal starts 15 frames after the press and runs 24 frames; on an ease-out most of it shows in the first few, so time the reveal sound to the first frame it shows |
 | The result holds | 0.3 s per word plus 0.5 s at least, still |
 
 - Record the control's position from the fitted screen and aim the cursor there, not at a guess.

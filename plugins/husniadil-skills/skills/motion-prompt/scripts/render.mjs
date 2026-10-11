@@ -3,7 +3,7 @@
 // The page is opened with ?t=0 and frozen at t = i / fps for every frame: window.renderAt(t) is called when the page
 // defines it, and every CSS / Web Animations API animation is paused and seeked to t. Each frame is a screenshot.
 //
-// usage: node render.mjs <page.html | url> --seconds S [--fps 30] [--size 1080x1080] [--out dir]
+// usage: node render.mjs <page.html[?query] | url> --seconds S [--fps 30] [--size 1080x1080] [--out dir]
 //          [--frames 0,24,48]   stills only: those frames and a labelled sheet, no video
 //          [--blur N]           N sub-frames per frame over half a frame (a 180-degree shutter), averaged in linear light
 //          [--ss N]             supersampling: render at N times the device pixel ratio and average each N x N block in
@@ -23,7 +23,7 @@ import { pathToFileURL } from 'node:url';
 
 const LUFS = -14, CEILING_DBTP = -2, MAX_DECODED_DBTP = -1;   // AAC adds 0.4 to 3 dB of true peak: limit at -2, then check the decoded MP4 against -1
 const X_GIF = { bytes: 15e6, mobileBytes: 5e6, frames: 350, width: 1280, height: 1080 };   // docs.x.com media best practices, help.x.com
-const USAGE = 'usage: node render.mjs <page.html | url> --seconds S [--fps 30] [--size 1080x1080] [--out dir] [--frames 0,24,48] [--blur N] [--ss N] [--gpu] [--audio | --audio-only] [--loop] [--gif] [--gif-fps 24]';
+const USAGE = 'usage: node render.mjs <page.html[?query] | url> --seconds S [--fps 30] [--size 1080x1080] [--out dir] [--frames 0,24,48] [--blur N] [--ss N] [--gpu] [--audio | --audio-only] [--loop] [--gif] [--gif-fps 24]';
 
 const argv = process.argv.slice(2);
 const opt = (name, dflt) => { const i = argv.indexOf('--' + name); return i >= 0 ? argv[i + 1] : dflt; };
@@ -119,10 +119,13 @@ const L2S = (l) => { const c = l <= 0.0031308 ? l * 12.92 : 1.055 * l ** (1 / 2.
 
 // --- the page
 const isUrl = /^https?:\/\//.test(target);
-if (!isUrl && !fs.existsSync(target)) die(`not found: ${target}`);
-const pageUrl = new URL(isUrl ? target : pathToFileURL(path.resolve(target)).href);
+// a file may carry a query for a variant of the piece (piece.html?lang=id), passed on to the page
+const [pageFile, query = ''] = isUrl ? [target] : target.split(/\?(.*)/s);
+if (!isUrl && !fs.existsSync(pageFile)) die(`not found: ${pageFile}`);
+const pageUrl = new URL(isUrl ? target : pathToFileURL(path.resolve(pageFile)).href + (query ? '?' + query : ''));
 pageUrl.searchParams.set('t', '0');   // the contract: with ?t= the page starts no requestAnimationFrame loop of its own
-const name = isUrl ? 'render' : path.basename(target, path.extname(target));
+const variant = query.replace(/(^|&)t=[^&]*/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const name = isUrl ? 'render' : path.basename(pageFile, path.extname(pageFile)) + (variant ? '-' + variant : '');
 const OUT = path.resolve(opt('out', path.join('out', name)));
 const FRAMES = path.join(OUT, stills ? 'stills' : 'frames');
 fs.mkdirSync(FRAMES, { recursive: true });
@@ -271,8 +274,9 @@ if (withAudio) {
     // score, so measure and make it up, at most three passes.
     wav = path.join(OUT, 'audio.wav');
     const limit = 10 ** ((CEILING_DBTP - 0.2) / 20);
-    let gain = LUFS - before.I, after = null, pass = 0;
+    let gain = LUFS - before.I, applied = gain, after = null, pass = 0;
     for (; pass < 3; pass++) {
+      applied = gain;
       const af = `volume=${gain.toFixed(2)}dB,aresample=192000,alimiter=limit=${limit.toFixed(4)}:attack=1:release=60:level=false:latency=true,aresample=48000`;
       const p = spawnSync('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error', '-i', raw, '-af', af, '-c:a', 'pcm_s24le', '-t', String(seconds), wav], { stdio: 'inherit' });
       if (p.status !== 0) die('ffmpeg: the loudness pass failed');
@@ -280,7 +284,10 @@ if (withAudio) {
       if (Math.abs(after.I - LUFS) <= 0.3) break;
       gain += LUFS - after.I;
     }
-    console.log(`audio: rendered ${before.I.toFixed(1)} LUFS, ${before.TP.toFixed(1)} dBTP -> ${after.I.toFixed(1)} LUFS, ${after.TP.toFixed(1)} dBTP (gain ${gain.toFixed(1)} dB, ${Math.min(pass + 1, 3)} pass${pass ? 'es' : ''})`);
+    // what the limiter took off the hottest peak: where it would have been after the gain, less where it ended up
+    const took = Math.max(0, before.TP + applied - after.TP);
+    console.log(`audio: rendered ${before.I.toFixed(1)} LUFS, ${before.TP.toFixed(1)} dBTP -> ${after.I.toFixed(1)} LUFS, ${after.TP.toFixed(1)} dBTP (gain ${applied.toFixed(1)} dB, limiter took ${took.toFixed(1)} dB at the hottest peak, ${Math.min(pass + 1, 3)} pass${pass ? 'es' : ''})`);
+    if (took > 3) console.warn(`warning: the limiter took ${took.toFixed(1)} dB off the hottest peak, which flattens that hit: tame it in the score (sound.md, Balance)`);
   }
 }
 await browser.close();

@@ -4,7 +4,7 @@ Name the engine in OUTPUT with its version and numbers ("a Remotion composition,
 
 | The piece | Engine | Rendered by |
 |---|---|---|
-| One idea under ~10 s: type, shapes, UI, a logo | plain HTML with CSS, SVG or Canvas 2D | `render.mjs` |
+| A piece under ~30 s, one idea per shot: type, shapes, UI, a logo, a product demo (a 20 s, 600-frame UI film rendered in 43 s in the fourth end-to-end test) | plain HTML with CSS, SVG or Canvas 2D | `render.mjs` |
 | Anything 3D: a product, a mascot, a title in chrome, including a ray-marched distance field in a full-screen shader | three.js in one HTML file | `render.mjs --gpu` |
 | A series, a template, data-driven or longer videos | Remotion | `npx remotion render` |
 | HTML and GSAP timelines turned into video | HyperFrames | `npx hyperframes render` |

@@ -27,12 +27,13 @@ Each points at frames, not feelings. Pick one or two per round; all of them at o
 
 ```text
 Render stills at frames 0, 24, 48, 72 and 96. Describe each in one sentence as a viewer would. Does that match the shot list? Fix what does not.
+On each text box's landing frame, measure the box with Range.getClientRects(): list its line count and any line past the box's right or bottom edge. Render the same frame with the longest copy and measure again.
 Make a contact sheet of every 12th frame. Mark every frame where two things move at once, then fix the hierarchy.
 Onion-skin frames 24 to 47 at 25% opacity. Spacing should tighten near the keys. Adjust the easing until it does.
 Plot the hero's x position and scale per frame as a PNG chart. Show me where the motion is linear or stops dead, then fix it with the motion tokens.
 Review this like a senior motion designer: 10 notes ordered by impact, each with a frame number and the exact code change. Apply the top 5.
 It is too busy. Remove 30% of the motion and keep only the moves that guide the eye.
-The ending is abrupt. Add a 36-frame hold with a 2% push, then let it settle on a spring at a damping ratio of 0.8.
+The ending is abrupt. Add a 36-frame hold with a 2% push on the image behind the words, then let it settle on a spring at a damping ratio of 0.8.
 List every default this render used that the BANNED line did not name. Add them to BANNED and render again.
 ```
 
