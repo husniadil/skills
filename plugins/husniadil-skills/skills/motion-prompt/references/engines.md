@@ -5,7 +5,7 @@ Name the engine in OUTPUT with its version and numbers ("a Remotion composition,
 | The piece | Engine | Rendered by |
 |---|---|---|
 | One idea under ~10 s: type, shapes, UI, a logo | plain HTML with CSS, SVG or Canvas 2D | `render.mjs` |
-| Anything 3D: a product, a mascot, a title in chrome | three.js in one HTML file | `render.mjs --gpu` |
+| Anything 3D: a product, a mascot, a title in chrome, including a ray-marched distance field in a full-screen shader | three.js in one HTML file | `render.mjs --gpu` |
 | A series, a template, data-driven or longer videos | Remotion | `npx remotion render` |
 | HTML and GSAP timelines turned into video | HyperFrames | `npx hyperframes render` |
 | Motion inside a live product UI, not a video | GSAP or Motion | the browser |
@@ -32,7 +32,20 @@ Facts below were checked on 2026-10-11 against each project's repository or docs
 - `window.renderAt(t)` sets every position, rotation, uniform and camera value from `t`, then calls `renderer.render(scene, camera)`. Start `renderer.setAnimationLoop` only when the URL has no `?t=`.
 - Render with `--gpu`, and with `--blur 4` to `--blur 8` for motion blur. Shaders, bloom passes and grain take `t` or the frame index as input, never a clock.
 - **`TextGeometry` changed its extrusion parameter.** r160 to r162 read `height` and ignore `depth`, so `depth` alone extrudes at the default 50. r163 renamed it to `depth` and kept `height` as a deprecated alias. r173 removed the alias: from then on, `height` is ignored without a warning and the text extrudes at 50. Name the parameter that matches the pinned version (checked in the r160, r162, r163, r172, r173 and r186 sources).
-- Give the model sizes in one unit ("1 unit = 1 cm"), materials as numbers (roughness, metalness, clearcoat), lights as colour, intensity and position, and a field of view.
+- Give the model sizes in one unit ("1 unit = 1 cm"), materials as numbers (roughness, metalness, clearcoat), lights as colour, intensity and position, and a field of view. Starting values are in numbers.md, 3D look.
+
+### Liquid that becomes a shape (ray-marched)
+
+How the source's chrome title loop did it, after ten follow-ups:
+
+- One signed-distance field for everything that should merge (blob, droplets, letters), joined with a smooth minimum: k 0.35 while the blob is whole, falling to 0.1 as the droplets part.
+- Letters as distance fields: bake each glyph's outline into a signed-distance texture on the GPU (one channel per glyph; 2048 x 512 held a word), extruded as a rounded box, so a letter can merge with a droplet.
+- A droplet becomes its letter by revealing the letter inside a sphere that grows from the droplet (smooth maximum, k 0.05, ease-out, 0.4 s) while the droplet shrinks into it. Mixing the two distances (`mix(sphere, letter)`) passes through flat coins.
+- New droplets grow from a negative radius (-0.4), so their pull on the blob fades in. A droplet that appears at full size pops a bump onto the blob.
+- Squash and stretch the whole field about the point where it touches the floor. Scaling the sphere centres lifts everything off the floor.
+- Melt in the reverse order of the pour: regrow the droplets, retract the letters into them, then grow the blob. A melt built from offset unions erases the letter halfway.
+- A surface ripple of 0.008 at frequency 3.2 keeps a liquid from reading as crumpled foil.
+- A ray-marched surface has no anti-aliasing of its own: size the canvas by devicePixelRatio and render with `--gpu --ss 2 --blur 4`.
 
 ## GSAP in a plain HTML piece
 

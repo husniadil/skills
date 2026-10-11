@@ -94,6 +94,23 @@ When a beat isn't a whole number of frames, compute beat n at `n * 60 / BPM` sec
 - The camera never parks: a slow orbit or a creep in every hold.
 - Parallax speeds to start from: 1.0 foreground, 0.5 middle, 0.2 background.
 
+## 3D look
+
+Starting values from the source's three pieces. Put them in LOOK, then fix from stills.
+
+| Material | Numbers |
+|---|---|
+| Polished chrome, ray-marched | F0 0.92, Schlick fresnel, roughness 0.04, 3 reflection bounces |
+| Chrome, three.js `MeshPhysicalMaterial` | metalness 1, roughness 0.05 |
+| Satin ceramic | colour F4F1EC, roughness 0.38, clearcoat 0.35 |
+| Toy vinyl | roughness 0.45, clearcoat 0.3 |
+
+- **Chrome is its reflections, so build the room.** In three.js, a PMREM environment generated in code (softbox planes, strips, a dome); in a ray-marched scene, a studio the reflected ray reads by azimuth and elevation. Never a stock HDRI.
+- **A studio that made chrome read:** a dark room (0.1 grey); a white cyc behind the subject, 140 degrees wide, from 10 degrees below to 40 above; softboxes overhead (2.4) and upper left (3.0); black flags 75 degrees left and right; black on the camera side, so faces toward the camera read dark and the bright bands show; the accent as a rim strip behind and above (165 degrees, 42 up, 70 x 16 degrees, intensity 1.4); and a thin horizon strip (0.5 degrees, at -6 degrees, inside the camera-side panel) so flat faces have something to reflect.
+- **A glint is a narrow strip in the environment that moves:** 0.6 degrees wide at intensity 3, swept across the subject in 0.8 s. Keep it in the reflections only (a second environment for the specular lookup); a strip that also lights the diffuse becomes a flood light. A base environment that saturates hides it.
+- **Lights for a product mesh:** key FFF4E8 at 3.0, upper front left, with soft shadows; fill E8EEF5 at 0.6, low right; rim FFFFFF at 4.0, upper back right; contact shadows at opacity 0.55. Practical lights by temperature: key 3200 K, top 5000 K, rim 7500 K.
+- **Post:** neutral tone mapping, or linear to 0.9 then a soft shoulder; vignette 7 to 10%; grain 1.5 to 2% seeded by the frame index (modulo N in a loop). Bloom only when the brief wants it, at threshold 1.0 and strength 0.3 at most.
+
 ## Animation principles as numbers
 
 The five that do most of the work in a short loop, from Thomas and Johnston's *The Illusion of Life* (1981), written the way a prompt writes them:

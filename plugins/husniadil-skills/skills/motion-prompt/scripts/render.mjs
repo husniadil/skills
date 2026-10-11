@@ -3,9 +3,11 @@
 // The page is opened with ?t=0 and frozen at t = i / fps for every frame: window.renderAt(t) is called when the page
 // defines it, and every CSS / Web Animations API animation is paused and seeked to t. Each frame is a screenshot.
 //
-// usage: node render.mjs <page.html | url> --seconds S [--fps 60] [--size 1080x1080] [--out dir]
+// usage: node render.mjs <page.html | url> --seconds S [--fps 30] [--size 1080x1080] [--out dir]
 //          [--frames 0,24,48]   stills only: those frames and a labelled sheet, no video
 //          [--blur N]           N sub-frames per frame over half a frame (a 180-degree shutter), averaged in linear light
+//          [--ss N]             supersampling: render at N times the device pixel ratio and average each N x N block in
+//                               linear light (the page sizes its canvas by window.devicePixelRatio)
 //          [--gpu]              render WebGL on the real GPU and say which renderer ran
 //          [--audio]            render the page's window.renderAudio() (an OfflineAudioContext's AudioBuffer), bring it to
 //                               -14 LUFS under a -2 dBTP true-peak limiter, mux it, and measure the decoded MP4
@@ -21,7 +23,7 @@ import { pathToFileURL } from 'node:url';
 
 const LUFS = -14, CEILING_DBTP = -2, MAX_DECODED_DBTP = -1;   // AAC adds up to ~1 dB of true peak: limit at -2 to deliver under -1
 const X_GIF = { bytes: 15e6, mobileBytes: 5e6, frames: 350, width: 1280, height: 1080 };   // docs.x.com media best practices, help.x.com
-const USAGE = 'usage: node render.mjs <page.html | url> --seconds S [--fps 60] [--size 1080x1080] [--out dir] [--frames 0,24,48] [--blur N] [--gpu] [--audio | --audio-only] [--loop] [--gif] [--gif-fps 24]';
+const USAGE = 'usage: node render.mjs <page.html | url> --seconds S [--fps 30] [--size 1080x1080] [--out dir] [--frames 0,24,48] [--blur N] [--ss N] [--gpu] [--audio | --audio-only] [--loop] [--gif] [--gif-fps 24]';
 
 const argv = process.argv.slice(2);
 const opt = (name, dflt) => { const i = argv.indexOf('--' + name); return i >= 0 ? argv[i + 1] : dflt; };
@@ -31,14 +33,16 @@ const die = (msg, code = 1) => { console.error(msg); process.exit(code); };
 const target = argv[0];
 if (!target || target.startsWith('--')) die(USAGE, 2);
 const seconds = Number(opt('seconds'));
-const fps = Number(opt('fps', '60'));
+const fps = Number(opt('fps', '30'));
 const [W, H] = opt('size', '1080x1080').split('x').map(Number);
 const blur = Math.max(1, parseInt(opt('blur', '1'), 10));
+const SS = Math.max(1, parseInt(opt('ss', '1'), 10));
 const gifFps = Number(opt('gif-fps', '24'));
 const stills = opt('frames') ? opt('frames').split(',').map((s) => parseInt(s, 10)) : null;
 const audioOnly = flag('audio-only'), withAudio = audioOnly || flag('audio');
 if (!(seconds > 0) || !(fps > 0) || !(W > 0) || !(H > 0)) die(USAGE, 2);
 if (stills && withAudio) die('--frames renders stills only: drop --audio', 2);
+if (stills && flag('loop')) die('--frames renders stills only: --loop needs the full render', 2);
 if (W % 2 || H % 2) die(`--size ${W}x${H}: H.264 in yuv420p needs an even width and height`, 2);
 const N = Math.round(seconds * fps);
 if (Math.abs(N - seconds * fps) > 1e-6) console.warn(`warning: ${seconds}s x ${fps}fps is not a whole number of frames; rendering ${N}`);
@@ -127,7 +131,7 @@ const GPU_ARGS = process.platform === 'win32' ? ['--use-angle=d3d11', '--enable-
   : process.platform === 'darwin' ? ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist']
   : ['--use-angle=vulkan', '--enable-features=Vulkan', '--enable-gpu', '--ignore-gpu-blocklist'];
 const browser = await pw.chromium.launch(flag('gpu') ? { channel: 'chromium', args: GPU_ARGS } : {});
-const context = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
+const context = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: SS });
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
@@ -155,16 +159,20 @@ const seek = (t) => page.evaluate(async (tt) => {
   for (const a of document.getAnimations()) { a.pause(); a.currentTime = tt * 1000; }
 }, t);
 const shot = async (t) => { await seek(t); return page.screenshot({ type: 'png' }); };
-// one output frame: a single screenshot, or `blur` sub-frames spread over the open half of the frame, averaged in linear light
+// one output frame: a single screenshot, or `blur` sub-frames spread over the open half of the frame and SS x SS screenshot
+// pixels per output pixel, all averaged in linear light
 async function frame(i) {
-  if (blur === 1) { const png = await shot(i / fps); return { png, rgba: decodePNG(png) }; }
-  const acc = new Float32Array(W * H * 4);
+  if (blur === 1 && SS === 1) { const png = await shot(i / fps); return { png, rgba: decodePNG(png) }; }
+  const acc = new Float32Array(W * H * 4), sw = W * SS, n = blur * SS * SS;
   for (let j = 0; j < blur; j++) {
-    const d = decodePNG(await shot((i + ((j + 0.5) / blur) * 0.5) / fps));
-    for (let k = 0; k < d.length; k += 4) { acc[k] += S2L[d[k]]; acc[k + 1] += S2L[d[k + 1]]; acc[k + 2] += S2L[d[k + 2]]; acc[k + 3] += d[k + 3]; }
+    const d = decodePNG(await shot(blur === 1 ? i / fps : (i + ((j + 0.5) / blur) * 0.5) / fps));
+    for (let k = 0; k < d.length; k += 4) {
+      const p = k >> 2, o = (((p / sw) | 0) / SS | 0) * W * 4 + ((p % sw) / SS | 0) * 4;
+      acc[o] += S2L[d[k]]; acc[o + 1] += S2L[d[k + 1]]; acc[o + 2] += S2L[d[k + 2]]; acc[o + 3] += d[k + 3];
+    }
   }
   const rgba = new Uint8Array(acc.length);
-  for (let k = 0; k < acc.length; k += 4) { rgba[k] = L2S(acc[k] / blur); rgba[k + 1] = L2S(acc[k + 1] / blur); rgba[k + 2] = L2S(acc[k + 2] / blur); rgba[k + 3] = Math.round(acc[k + 3] / blur); }
+  for (let k = 0; k < acc.length; k += 4) { rgba[k] = L2S(acc[k] / n); rgba[k + 1] = L2S(acc[k + 1] / n); rgba[k + 2] = L2S(acc[k + 2] / n); rgba[k + 3] = Math.round(acc[k + 3] / n); }
   return { png: encodePNG(rgba, W, H), rgba };
 }
 const file = (i) => path.join(FRAMES, `${String(i).padStart(5, '0')}.png`);

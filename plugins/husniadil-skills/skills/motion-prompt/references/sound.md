@@ -5,23 +5,23 @@ The feed plays video muted until someone taps, so the picture has to work in sil
 ## The SOUND line and its contract
 
 ```text
-SOUND: synthesize everything in code with the Web Audio API, no samples, no downloads. <BPM>, a bed of <kick, shaker, pad on chords ...> starting on frame <F>. Hits, each one frame after its picture: <frame: sound> ... Expose window.renderAudio(), returning the AudioBuffer of an OfflineAudioContext(2, 48000 * <seconds>, 48000) that renders the whole score. Seed any noise.
+SOUND: synthesize everything in code with the Web Audio API, no samples, no downloads. <BPM>, a bed of <kick, shaker, pad on chords ...> starting on frame <F>. Hits, each one frame after its picture: <frame: sound> ... Expose window.renderAudio(), returning the AudioBuffer of an OfflineAudioContext(2, 48000 * <seconds>, 48000) that renders the whole score; renderAudio({ only: 'hits' }) and renderAudio({ only: 'bed' }) render one part alone. Seed any noise.
 ```
 
-`render.mjs --audio` calls `window.renderAudio()`, brings the result to -14 LUFS under a -2 dBTP true-peak limiter, muxes it as AAC, and measures the decoded MP4.
+`render.mjs --audio` calls `window.renderAudio()` with no argument, brings the result to -14 LUFS under a -2 dBTP true-peak limiter, muxes it as AAC, and measures the decoded MP4's loudness and true peak. That is all it measures: hit timing and hit level come from a script the model writes against the two parts rendered alone, as in the follow-ups below.
 
 ## Timing
 
-- **A hit lands one frame after its picture.** Light reaches us before sound, so a sound that arrives a little late reads as right and one that arrives early reads as wrong. The onset of a hit on frame F is at `(F + 1) / fps` seconds.
-- At 48 kHz a frame is 1600 samples at 30 fps and 800 at 60 fps, so the onset of a hit on frame F sits on sample `(F + 1) * 48000 / fps`.
+- **A hit lands one frame after its picture.** Light reaches us before sound, so a sound that arrives a little late reads as right and one that arrives early reads as wrong. A hit on frame F peaks at `(F + 1) / fps` seconds.
+- At 48 kHz a frame is 1600 samples at 30 fps and 800 at 60 fps, so a hit on frame F peaks on sample `(F + 1) * 48000 / fps`. Its peak is the first sample that reaches 90% of its largest value in its first 30 ms.
 - Put the bed on the same beat grid as the cuts (numbers.md), computed per beat from time.
-- Start tonal hits in cosine phase with a short attack (0.5 to 1 ms), so the first waveform peak sits on the frame. Sines that start at phase 0 and waveshapers pushed the peaks 2.5 to 11 ms late in the source's measurements.
+- End the attack on the frame: start the envelope 0.5 to 1 ms before `(F + 1) / fps`, and start the oscillator so that sample is a crest (a sine reaches its crest a quarter period after it starts). Measured this way, an 880 Hz hit with a 0.75 ms attack peaked 0.04 ms early; the same hit with its attack starting on the frame peaked 0.77 ms late. Sines that start at phase 0 and waveshapers pushed the peaks 2.5 to 11 ms late in the source's measurements.
 
 ## Balance
 
-- Every hit, or every pair of hits on one frame, sits 3 to 6 dB over the bed (K-weighted, over its first 60 ms). That was the source's working target, reached in every piece by measurement.
+- Every hit, or every pair of hits on one frame, sits 3 to 6 dB over the bed: the RMS of the hit's first 60 ms against the RMS of the bed alone over the same 60 ms. The bed is everything that isn't a hit. That was the source's working target (it K-weighted both), reached in every piece by measurement.
 - Keep the energy where phone speakers play: the first mix of the source's product film put 80% of its energy under 60 Hz, and the chrome loop's mix lost 4.5 dB through a 150 Hz high-pass. Move bass and sub up an octave, open filters, and raise the pad instead.
-- Balance by removing energy: every boost is partly taken back by the limiter.
+- Balance by removing energy: every boost is partly taken back by the limiter. When a short hit can't get 3 dB over the bed without the limiter catching it, lower the bed instead; the gain stage brings the whole mix back up to -14 LUFS.
 - A peaky score (square waves, hard transients, everything cresting on one sample) makes the limiter take a lot, and then the piece ends quieter than -14 LUFS. Tame the hottest hits in the score rather than limiting harder.
 
 ## Loudness and the encode
@@ -35,8 +35,8 @@ SOUND: synthesize everything in code with the Web Audio API, no samples, no down
 Pick one or two per round:
 
 ```text
-Decode the MP4's audio and list, for every hit, the frame it belongs to and how many milliseconds after (frame + 1) its first waveform peak lands. Fix any hit off by more than 1 ms.
-Measure each hit against the bed, K-weighted over its first 60 ms. Bring every hit to 3 to 6 dB over the bed by trimming, not boosting.
+Render the hits alone with renderAudio({ only: 'hits' }) and list, for every hit, the frame it belongs to and how many milliseconds its peak (the first sample at 90% of its largest value in its first 30 ms) sits from (frame + 1) / fps. Fix any hit more than 1 ms off by ending its attack on that sample.
+Render the bed alone with renderAudio({ only: 'bed' }). For every hit, compare the RMS of its first 60 ms with the bed's RMS over the same 60 ms. Bring every hit to 3 to 6 dB over the bed by trimming the bed or the hit, not by boosting.
 Measure the share of energy under 60 Hz, 60 to 150 Hz and 150 Hz to 6 kHz. If most of it is under 150 Hz, move the bass up an octave and open its filter.
 The limiter took more than 3 dB on the hottest hit. Find which partials crest on the same sample and lower or re-phase them.
 ```

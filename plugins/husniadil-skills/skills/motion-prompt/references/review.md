@@ -54,10 +54,28 @@ A note that arrives as a feeling gets translated before it goes to the model:
 | Audio drifts off the beat | (measure the hits) | Compute each beat as n x 60 / BPM and round per beat. Never add a rounded frame count. |
 | Jank or dropped frames in a live preview | none: renders are frame-exact | Animate only transform and opacity, never width, height, top or left. |
 | Banding in the GIF | (look at the GIF) | Flat colours, or dither the palette. |
-| Blurry or shimmering text | (look at a still) | Snap resting text to whole pixels. |
+| Blurry or shimmering text | (look at a still) | Snap resting text to whole pixels, and render with `--ss 2`. |
+| Jagged edges on shapes or shader text | (look at a still at full size) | Size the canvas by devicePixelRatio and render with `--ss 2`. A ray-marched shape has no anti-aliasing of its own. |
 | Text moves before it can be read | (look at the sheet) | Hold every text state 0.3 s per word plus 0.5 s before it moves. |
 | Everything moves at once | (look at the sheet) | One hero move at a time; others start 150 ms later at 60% of its travel. |
 | Audio too quiet after the limiter | `more than 1 LU from -14` | Tame the hottest hits in the score, then `--audio-only`. |
 | Audio peaks over -1 dBTP decoded | `over -1 dBTP` | Lower the hits that crest together, then `--audio-only`. |
+
+### 3D
+
+From the source's follow-ups and this skill's end-to-end test. engines.md, Liquid that becomes a shape, has the technique behind each fix.
+
+| Symptom | Fix to send |
+|---|---|
+| Chrome reads as white or grey plastic | Darken the studio to 0.1 grey with a white cyc behind the subject, black on the camera side, so the chrome shows dark and bright bands. |
+| Flat faces read as flat charcoal | Add a thin horizon strip inside the camera-side panel for them to reflect. |
+| The glint is a flood light, or invisible | Keep the strip in the reflections only, narrow it (0.6 degrees), and keep the base environment from saturating. |
+| Bevels fuse neighbouring letters | Space the glyphs by their measured outlines, not by advance widths alone. |
+| A letter or the word space is missing | Lay the letters out from the font's advance widths, the space included, and check the word on one still. |
+| A shape morph passes through a flat coin | Reveal the target inside a growing sphere and shrink the source into it. |
+| A bump pops onto a blob | Grow the new part from a negative radius. |
+| Squash lifts things off the floor | Scale the whole field about the floor contact point. |
+| A melt erases the letter halfway | Regrow the droplets first, then retract the letters into them. |
+| Parts leave the frame at the widest moment | Render a still at that frame, then pull the camera back or shorten the arc. |
 
 When a fix works, add its line to the render contract. The contract is the lab's memory: every line is a failure that won't come back.

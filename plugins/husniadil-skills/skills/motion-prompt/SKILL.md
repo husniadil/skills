@@ -65,10 +65,11 @@ Render contract:
 - With ?t= in the URL, start no requestAnimationFrame loop and no timer. Without it, play in real time for preview.
 - No Date.now, performance.now, setTimeout or setInterval for motion, and no unseeded Math.random: seed every random from a fixed key.
 - If anything loads or bakes asynchronously (fonts, textures, a distance-field bake), set window.__ready = false at once and true when it is done.
+- Size every canvas by window.devicePixelRatio (three.js: renderer.setPixelRatio(window.devicePixelRatio)), so a supersampled render gets more pixels.
 - Loops: frames 0 to N-1 are rendered and frame N equals frame 0, so every periodic motion completes whole cycles in the loop.
 ```
 
-With sound, add: `Expose window.renderAudio(), returning the AudioBuffer of an OfflineAudioContext that synthesizes the whole score.`
+With sound, add: `Expose window.renderAudio(), returning the AudioBuffer of an OfflineAudioContext that synthesizes the whole score; renderAudio({ only: 'hits' }) and renderAudio({ only: 'bed' }) render one part alone, for measuring.`
 
 ## Output
 
@@ -85,13 +86,17 @@ With sound, add: `Expose window.renderAudio(), returning the AudioBuffer of an O
 node ${CLAUDE_SKILL_DIR}/scripts/render.mjs piece.html --seconds 6 --fps 30 --size 1080x1080 --loop
 ```
 
-It needs Node 18+, Playwright with Chromium, and ffmpeg. It resolves Playwright from the project, then the skill's folder, then the global npm root, and exits 1 naming whatever is missing with its install command. Tell the user that command; don't install anything yourself.
+It needs Node 18+, Playwright with Chromium, and ffmpeg. It resolves Playwright from the project, the skill's folder, `NODE_PATH` and the global npm root, and exits 1 naming whatever is missing with its install command. Tell the user that command; don't install anything yourself.
 
 | Option | What it does |
 |---|---|
-| `--frames 0,24,48` | Stills only: those frames and a labelled `stills.png`. The fast loop while building. |
-| `--loop` | Checks that frame N matches frame 0, that no frame is held at the seam, and that the seam is not a jump bigger than every step inside. |
+| `--seconds S` | Required. The length; frames = seconds x fps. |
+| `--fps 30` | Frame rate, default 30. |
+| `--size 1080x1080` | The viewport, default 1080x1080. Width and height must be even. |
+| `--frames 0,24,48` | Stills only: those frames and a labelled `stills.png`. The fast loop while building. It takes no `--loop` or `--audio`. |
+| `--loop` | Checks that frame N matches frame 0, that no frame is held at the seam, and that the seam is not a jump bigger than every step inside. Full renders only. |
 | `--blur 4` | Motion blur: 4 sub-frames over half a frame (a 180-degree shutter), averaged in linear light. For 3D and fast moves. |
+| `--ss 2` | Supersampling: renders at twice the pixel density and averages each 2x2 block in linear light, for clean edges on shaders and text. Costs 4x the screenshots, times `--blur`. |
 | `--gpu` | WebGL on the real GPU, and prints which renderer ran (a software renderer is correct, only slower). |
 | `--audio` | Renders `window.renderAudio()`, brings it to -14 LUFS under a -2 dBTP true-peak limiter, muxes it, and measures the decoded MP4. |
 | `--audio-only` | The same audio pass over frames already rendered, to iterate the mix. |
@@ -106,4 +111,4 @@ Remotion and HyperFrames render with their own CLIs (engines.md); this skill wri
 
 ## Where this comes from
 
-The approach and most numbers come from a published lab notebook of three Claude Opus 5.5 pieces, a ray-marched chrome title loop, an A/B product film and a voxel mascot, each printed with its prompt and every follow-up (@flxrnc on X, 2026-09-30). The claims that could go stale were checked against primary sources on 2026-10-11, and each reference file names its sources. `render.mjs` was tested on CSS, Canvas 2D and WebGL on a GPU, on loops that close, close a frame early, overshoot their period and jump at the seam, on sub-frame blur (one white and one black sub-frame average to 188, the linear-light mean), and on a peaky synthesized score (-14.7 LUFS and -1.7 dBTP decoded, hits within 4 samples of their place).
+The approach and most numbers come from a published lab notebook of three Claude Opus 5.5 pieces, a ray-marched chrome title loop, an A/B product film and a voxel mascot, each printed with its prompt and every follow-up (@flxrnc on X, 2026-09-30). The claims that could go stale were checked against primary sources on 2026-10-11, and each reference file names its sources. `render.mjs` was tested on CSS, Canvas 2D and WebGL on a GPU, on loops that close, close a frame early, overshoot their period and jump at the seam, on sub-frame blur (one white and one black sub-frame average to 188, the linear-light mean), on supersampling (a hard-edged shader gains anti-aliased edges at `--ss 2`), and on a peaky synthesized score (-14.7 LUFS and -1.7 dBTP decoded, hits within 4 samples of their place). An end-to-end run on Claude Haiku 5.5 built a ray-marched chrome title loop from a one-paragraph brief with this skill and passed every check; what it struggled with is folded into these files.
