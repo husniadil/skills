@@ -17,6 +17,62 @@ Facts below were checked on 2026-10-11 against each project's repository or docs
 - OUTPUT: `one self-contained HTML file, no libraries, 1080x1080`.
 - CSS keyframes and Web Animations API animations need no code for the renderer: `render.mjs` pauses every animation the document has and seeks it to `t`. Canvas drawing goes in `window.renderAt(t)`.
 - A font ships inside the file, as a base64 data URI in `@font-face` subset to the glyphs the piece uses, since the contract allows no other network requests. A system font needs nothing, but renders differently on a machine without it. Either way it must be ready before the first frame: `render.mjs` waits on `document.fonts.ready`, which covers CSS text; Canvas text needs `await document.fonts.load('900 200px "Name"')` before the first `fillText`, behind `window.__ready`.
+- Put each element's state before its entrance in the CSS (`opacity: 0`), not only in the code that animates it. A renderAt that touches an element only once its move starts leaves the CSS state on screen until then, and the element flashes before its entrance.
+- A number that changes every frame (a counter, a price, a timer) takes `font-variant-numeric: tabular-nums` and a `min-width`: proportional digits change its width as they count, and the line around it shifts.
+- Directional motion blur on one element: an SVG `feGaussianBlur` with a separate deviation per axis, `stdDeviation="40 3"` for a horizontal move, applied with `filter: url(#id)` while the element moves and removed when it stops. Widen the filter region to `x="-70%" y="-70%" width="240%" height="240%"`: with the default region (10% each side) a 200 px box blurred at 40 px ended in a hard edge at 79 of 255 grey, and the widened one faded to 5. `render.mjs --blur` blurs the whole frame instead.
+
+### Video clips locked to t
+
+A clip is a layer like any other, and the frame it shows comes from `t`, never from its own clock. Use one where real motion is the proof (a screen recording, the product in someone's hands) for a 3 to 8 s beat, with at most two or three on screen at once, since every visible clip is decoded on every frame. A still image is lighter when it says the same.
+
+- Cut each clip to the part used, without sound (the score or the voice is its own track): `ffmpeg -ss 2 -t 6 -i source.mov -vf "scale=1920:-2" -c:v libx264 -pix_fmt yuv420p -crf 20 -movflags +faststart -an clips/demo.mp4`. VP9 in WebM works too: Playwright 1.63's Chromium (153) decoded both.
+- The file sits beside the page (`clips/demo.mp4`), which `render.mjs` opens from disk; deliver the folder with the page.
+- `<video muted playsinline preload="auto">`, with no `autoplay` and no `loop`. `render.mjs` warns when a video plays on its own clock.
+- Move, scale, mask and grade the video element or a wrapper; only `syncClip` sets its time.
+
+```js
+const RENDER = new URLSearchParams(location.search).has('t');
+// A clip on the timeline: source time = from + (t - at) * rate. Hidden before `at`; past `to` (or the file's end) it
+// holds its last frame when `hold` is set, and hides otherwise.
+const clips = [];
+const clip = (el, { at = 0, from = 0, to = Infinity, rate = 1, hold = false } = {}) => clips.push({ el, at, from, to, rate, hold });
+function sourceTime(c, t) {
+  if (t < c.at) return null;
+  // 1 ms into the frame: a seek to the exact start of a source frame can land a hair before it and show the one before
+  const end = Math.min(c.to, c.el.duration), s = c.from + (t - c.at) * c.rate + 0.001;
+  return s < end ? s : c.hold ? end - 0.001 : null;
+}
+// Rendering: seek, and resolve once the seek is done and two animation frames have passed, so the frame is on screen.
+// Preview: let the clip play and seek only when it drifts more than 0.2 s from the timeline.
+function syncClip(c, t) {
+  const s = sourceTime(c, t), v = c.el;
+  v.style.visibility = s === null ? 'hidden' : 'visible';
+  if (!RENDER) {
+    if (s === null || (c.hold && s >= Math.min(c.to, v.duration) - 0.002)) v.pause();
+    else { v.playbackRate = c.rate; if (v.paused) v.play(); }
+    if (s !== null && Math.abs(v.currentTime - s) > 0.2) v.currentTime = s;
+    return;
+  }
+  if (s === null) return;
+  const shown = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+  if (Math.abs(v.currentTime - s) < 1e-6 && !v.seeking) return shown();
+  return new Promise((res) => { v.addEventListener('seeked', () => shown().then(res), { once: true }); v.currentTime = s; });
+}
+
+clip(document.getElementById('demo'), { at: 4, from: 1.5, to: 6, hold: true });
+
+// render.mjs waits until every clip has its first frame decoded
+window.__ready = false;
+Promise.all(clips.map((c) => c.el.readyState >= 2 || new Promise((res) => c.el.addEventListener('loadeddata', res, { once: true }))))
+  .then(() => { window.__ready = true; });
+
+window.renderAt = (t) => {
+  // ...set everything else from t...
+  return Promise.all(clips.map((c) => syncClip(c, t)));
+};
+```
+
+`render.mjs` awaits the Promise that `renderAt` returns. Tested on a page with two clips whose frames carry their own index as a bar code (H.264 at 24 fps from 1 s with a hold, VP9 at 25 fps at half speed): in eight renders of 120 frames, `--ss 2` and `--gpu` among them, every frame showed the source frame its time maps to. Without the 1 ms, every fifth frame of the 24 fps clip showed the frame before; waiting on `seeked` alone, a clip's first frame on screen came out blank or showed the wrong frame; one animation frame instead of two failed once under `--ss 2`. The wait costs about 80 ms a frame (120 frames at 640x360 in 18.6 s, against 9.2 s on `seeked` alone). In the preview the clips stayed within 0.1 s of the timeline. Under `--blur` a frame averages the source frames its sub-frames fall on, which is the clip's own motion blur.
 
 ## three.js
 
@@ -138,6 +194,7 @@ Past `spread` pixels the stored distance stops growing, so far from a glyph it r
 
 ## Sources
 
+- Plain HTML: the initial state in the CSS, tabular numbers, the directional blur and its filter region, and video clips seeked from the timeline come from bang-motion v1.19.0 by Bang Tutorial (MIT, `references/techniques.md` sections 2, 9b and 10, `assets/starter-opener.html`). The clip code here is this skill's own, and the numbers are from this skill's tests.
 - three.js: `mrdoob/three.js` releases and `examples/jsm/geometries/TextGeometry.js` at r160, r162, r163, r172, r173 and r186; the installation page in `manual/`.
 - GSAP: `greensock/GSAP` README, the GSAP Standard "no charge" license, npm.
 - Remotion: `remotion-dev/remotion` LICENSE.md and docs (getting started, Claude Code, `spring`, `random`, animating properties, CLI render).

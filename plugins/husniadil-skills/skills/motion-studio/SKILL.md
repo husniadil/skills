@@ -17,7 +17,7 @@ A model makes motion by writing a program that draws frames. Every frame is a fu
 3. **Fill the template** below with numbers from [references/numbers.md](references/numbers.md). Replace each adjective in the request with what it means: "premium" becomes the materials, a key, fill and rim light, ease-out-quint entrances and springs at a damping ratio of 0.8.
 4. **Write BANNED** from the list below, plus what this subject invites (a crypto brief invites neon, a product brief a spinning turntable).
 5. **Append the engine's contract:** the render contract below for HTML and three.js, or the Remotion or HyperFrames rules in engines.md.
-6. **Add a SOUND line only when the user wants sound,** from [references/sound.md](references/sound.md). With a voice-over, generate the voice first and build the timeline, the captions and the mix from its timings, as [references/narration.md](references/narration.md) says.
+6. **Add a SOUND line only when the user wants sound,** from [references/sound.md](references/sound.md). With a voice-over, generate the voice first and build the timeline, the captions and the mix from its timings, as [references/narration.md](references/narration.md) says; a voice that arrives after the picture is built retimes the picture instead (narration.md, A voice that arrives after the picture).
 7. **Deliver** as in Output.
 
 ## The template
@@ -26,7 +26,7 @@ A model makes motion by writing a program that draws frames. Every frame is a fu
 GOAL: what the viewer should feel or do, in one sentence.
 OUTPUT: engine and version, W x H (e.g. one self-contained HTML file, three.js 0.186.1 via a jsDelivr importmap, 1080x1080).
 TIME: seconds x fps = frames. Loop or not. BPM and frames per beat if anything lands on a beat.
-LOOK: palette in hex, one accent and the one thing it marks, typeface + weight + size + tracking.
+LOOK: palette in hex, each colour with its source (the brand's logo, site, app or packaging) or "derived: <reason>", one accent and the one thing it marks, typeface + weight + size + tracking.
 MOTION: easings as cubic-bezier, springs as damping ratio and frequency, durations in frames, stagger, what never bounces.
 SHOTS: frame ranges, one hero move per shot, and how each shot hands off to the next.
 BANNED: the defaults you never want to see, by name.
@@ -52,6 +52,10 @@ Start from these, then extend the list for the subject:
 - a dark navy space backdrop, a spinning turntable for a product
 - text that moves while it is being read
 - a logo fading to black as the only ending
+- scenes built as sections switched on and off with opacity: that is a slide deck. A scene changes because the world or the camera moves
+- three levels of text in one shot (a kicker, a title and a body): two at most, one big line and one label
+- a slow zoom on a still image (Ken Burns) as the only motion
+- one transition on every cut
 
 A general line like "avoid a generic look" swaps one default for another (this repository's Claude Opus 5.5 guide says the same for frontend work). Name the patterns. After each first render, name what the model used anyway and add it.
 
@@ -68,7 +72,8 @@ Render contract:
 - Every frame is a pure function of t in seconds. Expose window.renderAt(t), which draws exactly that frame (CSS or Web Animations API animations may drive motion instead; they are paused and seeked to t).
 - With ?t= in the URL, start no requestAnimationFrame loop and no timer. Without it, play in real time for preview: one requestAnimationFrame loop calls renderAt with its timestamp, in seconds since the first frame, wrapped at the length of the piece. That loop is the only clock in the file.
 - No Date.now, performance.now, setTimeout or setInterval for motion, and no unseeded Math.random: seed every random from a fixed key.
-- If anything loads or bakes asynchronously (fonts, textures, a distance-field bake), set window.__ready = false at once and true when it is done.
+- If anything loads or bakes asynchronously (fonts, textures, a distance-field bake, video clips), set window.__ready = false at once and true when it is done.
+- A video clip is a file beside the page, the one exception to a single file: muted, with no autoplay and no loop. renderAt seeks it to its source time and returns a Promise that resolves once that frame is on screen (engines.md, Video clips locked to t).
 - Size every canvas by window.devicePixelRatio (three.js: renderer.setPixelRatio(window.devicePixelRatio)), so a supersampled render gets more pixels.
 - Loops: frames 0 to N-1 are rendered and frame N equals frame 0, so every periodic motion completes whole cycles in the loop.
 ```
@@ -99,7 +104,7 @@ It needs Node 18+, Playwright with Chromium, and ffmpeg. It resolves Playwright 
 | `--fps 30` | Frame rate, default 30. |
 | `--size 1080x1080` | The viewport, default 1080x1080. Width and height must be even. |
 | `--frames 0,24,48` | Stills only: those frames (a range too: `157-159`) and a labelled `stills.png`. The fast loop while building. It takes no `--loop` or `--audio`. |
-| `--text` | Measures the DOM text on every rendered frame: font size under 36 px at 1080 wide, text in the 5% edge margin, text past the side of its box, two text boxes over each other, and lines past a `data-max-lines`. Only what lasts half a second counts in a full render, so text moving through a margin is fine. Text on a canvas or in WebGL is not measured. |
+| `--text` | Measures the DOM text on every rendered frame: font size under 36 px at 1080 wide, text in the 5% edge margin, text past the side of its box, two text boxes over each other, text under 4.5:1 contrast against the background under it (captured again with the glyphs hidden, which makes the check about 2.6 times slower), and lines past a `data-max-lines`. Only what lasts half a second counts in a full render, so text moving through a margin is fine. Text on a canvas or in WebGL is not measured. |
 | `--loop` | Checks that frame N matches frame 0, that no frame is held at the seam, and that the seam is not a jump bigger than every step inside. Full renders of a loop only: leave it off a piece that ends on a card. |
 | `--blur 4` | Motion blur: 4 sub-frames over half a frame (a 180-degree shutter), averaged in linear light. For 3D and fast moves. |
 | `--ss 2` | Supersampling: renders at twice the pixel density and averages each 2x2 block in linear light, for clean edges on shaders and text. Costs 4x the screenshots, times `--blur`. |
@@ -119,4 +124,4 @@ Remotion and HyperFrames render with their own CLIs (engines.md); this skill wri
 
 ## Where this comes from
 
-The approach and most numbers come from a published lab notebook of three Claude Opus 5.5 pieces, a ray-marched chrome title loop, an A/B product film and a voxel mascot, each printed with its prompt and every follow-up (@flxrnc on X, 2026-09-30). The claims that could go stale were checked against primary sources on 2026-10-11, and each reference file names its sources. `render.mjs` was tested on CSS, Canvas 2D and WebGL on a GPU, on loops that close, close a frame early, overshoot their period and jump at the seam, on sub-frame blur (one white and one black sub-frame average to 188, the linear-light mean), on supersampling (a hard-edged shader gains anti-aliased edges at `--ss 2`), on a peaky synthesized score (hits stayed within 4 samples of their place through the limiter, which took 11.8 dB at -14 LUFS, now a failure, and 1.4 dB at `--lufs -20`), on a page with every kind of text fault for `--text`, and on a hit placed 5 ms late for `--hits` (read as +4.96 ms). Three end-to-end runs on Claude Haiku 5.5 built a ray-marched chrome title loop from the same one-paragraph brief with this skill, a fourth a 20-second UI launch clip with sound and an Indonesian headline, and a fifth a 15-second clip in two languages paced from a reference video; all passed every check, and what they struggled with is folded into these files. A 4:48 narrated explainer in Indonesian, built in Remotion with these numbers and an ElevenLabs voice, gave narration.md and the rule that a layer entering over text turns opaque within two frames.
+The approach and most numbers come from a published lab notebook of three Claude Opus 5.5 pieces, a ray-marched chrome title loop, an A/B product film and a voxel mascot, each printed with its prompt and every follow-up (@flxrnc on X, 2026-09-30). The claims that could go stale were checked against primary sources on 2026-10-11, and each reference file names its sources. `render.mjs` was tested on CSS, Canvas 2D and WebGL on a GPU, on loops that close, close a frame early, overshoot their period and jump at the seam, on sub-frame blur (one white and one black sub-frame average to 188, the linear-light mean), on supersampling (a hard-edged shader gains anti-aliased edges at `--ss 2`), on a peaky synthesized score (hits stayed within 4 samples of their place through the limiter, which took 11.8 dB at -14 LUFS, now a failure, and 1.4 dB at `--lufs -20`), on a page with every kind of text fault for `--text`, and on a hit placed 5 ms late for `--hits` (read as +4.96 ms). Three end-to-end runs on Claude Haiku 5.5 built a ray-marched chrome title loop from the same one-paragraph brief with this skill, a fourth a 20-second UI launch clip with sound and an Indonesian headline, and a fifth a 15-second clip in two languages paced from a reference video; all passed every check, and what they struggled with is folded into these files. A 4:48 narrated explainer in Indonesian, built in Remotion with these numbers and an ElevenLabs voice, gave narration.md and the rule that a layer entering over text turns opaque within two frames. bang-motion v1.19.0 by Bang Tutorial (MIT), a skill for opener and explainer videos in HTML, was read for ideas and never run: video clips locked to the timeline, retiming to a voice that arrives later, 2D shot sizes, contrast behind text, the anti-slide entries in BANNED, the palette's sources, explainer staging and a simplified UI come from it. The clip code, the contrast check, the pause detection and the camera's clamp were written and tested here; the craft rules are its, credited where they appear.

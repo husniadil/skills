@@ -14,7 +14,8 @@
 //          [--audio-only]       the same audio pass over frames already rendered: iterate the mix without re-rendering
 //          [--loop]             check that the motion closes: frame N matches frame 0 and the seam N-1 -> 0 is a normal step
 //          [--gif] [--gif-fps 24]
-//          [--text]             measure the DOM text on every frame: size, edge margin, overflow, line limits, overlaps
+//          [--text]             measure the DOM text on every frame: size, edge margin, overflow, line limits, overlaps,
+//                               contrast against the background under it
 //          [--hits 158,178]     render the score's hits and bed alone and report each hit's offset and level
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
@@ -215,18 +216,51 @@ const measureText = () => {
     const lines = raw.filter((q, k) => seen[k] >= 3).map((q) => [q.left, q.top, q.right, q.bottom]);
     let box = el; while (box.parentElement && getComputedStyle(box).display === 'inline') box = box.parentElement;
     const b = box.getBoundingClientRect(), scale = el.offsetHeight ? el.getBoundingClientRect().height / el.offsetHeight : 1;
-    out.push({ key: text.slice(0, 48), px: parseFloat(getComputedStyle(el).fontSize) * scale, lines, raw: raw.map((q) => [q.left, q.right]), box: [b.left, b.top, b.right, b.bottom].map(Math.round), max: Number(box.closest('[data-max-lines]')?.dataset.maxLines) || 0 });
+    // the text's colour as sRGB with its alpha times the opacity above it; a colour that is not rgb() is not measured
+    const cs = getComputedStyle(el), c = (el instanceof SVGElement ? cs.fill : cs.color).match(/^rgba?\(([^)]+)\)$/)?.[1].split(/[\s,/]+/).filter(Boolean).map(Number);
+    out.push({ key: text.slice(0, 48), px: parseFloat(cs.fontSize) * scale, lines, raw: raw.map((q) => [q.left, q.right]), box: [b.left, b.top, b.right, b.bottom].map(Math.round), max: Number(box.closest('[data-max-lines]')?.dataset.maxLines) || 0, fg: c ? [c[0], c[1], c[2], (c[3] ?? 1) * o] : null });
   }
   return out;
 };
+// the background alone: the same frame with every glyph's fill transparent (a text shadow stays, as part of the background)
+const hideText = (on) => {
+  let st = document.getElementById('render-mjs-hide');
+  if (on && !st) { st = document.createElement('style'); st.id = 'render-mjs-hide'; st.textContent = '*{color:transparent!important;-webkit-text-fill-color:transparent!important}svg text,svg tspan{fill:transparent!important}'; document.head.append(st); }
+  else if (!on && st) st.remove();
+};
+async function backgroundShot() {
+  await page.evaluate(hideText, true);
+  const png = await page.screenshot({ type: 'png' });
+  await page.evaluate(hideText, false);
+  return decodePNG(png);
+}
+// WCAG contrast of the text's colour against each background pixel under its lines (sampled every 2 px), and the ratio
+// that 90% of those pixels reach: a few bright specks pass, a background half as light as the text does not
+const MIN_CONTRAST = 4.5;
+const luminance = (r, g, b) => 0.2126 * S2L[r] + 0.7152 * S2L[g] + 0.0722 * S2L[b];
+function contrastUnder(it, bg) {
+  const [r, g, b, a] = it.fg, bw = W * SS, ratios = [];
+  for (const [l, t, rt, bt] of it.lines) {
+    for (let y = Math.max(0, Math.floor(t * SS)); y < Math.min(H * SS, Math.ceil(bt * SS)); y += 2 * SS) {
+      for (let x = Math.max(0, Math.floor(l * SS)); x < Math.min(bw, Math.ceil(rt * SS)); x += 2 * SS) {
+        const o = (y * bw + x) * 4, br = bg[o], bgr = bg[o + 1], bb = bg[o + 2];
+        const L1 = luminance(Math.round(a * r + (1 - a) * br), Math.round(a * g + (1 - a) * bgr), Math.round(a * b + (1 - a) * bb)), L2 = luminance(br, bgr, bb);
+        ratios.push((Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05));
+      }
+    }
+  }
+  return ratios.length ? Float32Array.from(ratios).sort()[Math.floor(ratios.length * 0.1)] : null;
+}
 const textHits = new Map();   // "kind|what" -> [{ n: position in the frame list, i: frame, d: detail }]
 let textFrames = 0, textMost = 0;
-function checkText(n, i, items) {
+function checkText(n, i, items, bg) {
   textFrames++; textMost = Math.max(textMost, items.length);
   const add = (kind, what, d = '') => { const k = kind + '|' + what; if (!textHits.has(k)) textHits.set(k, []); textHits.get(k).push({ n, i, d }); };
   const minPx = 36 * W / 1080, mx = 0.05 * W, my = 0.05 * H;
   for (const it of items) {
     if (it.px < minPx - 0.5) add('small', it.key, `${Math.round(it.px)} px`);
+    const ratio = bg && it.fg ? contrastUnder(it, bg) : null;
+    if (ratio !== null && ratio < MIN_CONTRAST) add('contrast', it.key, `${ratio.toFixed(1)}:1`);
     const inView = it.lines.every(([l, t, r, b]) => l >= 0 && t >= 0 && r <= W && b <= H);
     if (inView && it.lines.some(([l, t, r, b]) => l < mx || t < my || r > W - mx || b > H - my)) add('safe', it.key);
     // overflow from every line box: text past its box is not hit-tested there, so the visible lines would miss it
@@ -259,10 +293,17 @@ for (const [n, i] of list.entries()) {
   // the first frame's one colour on every frame (a full-frame colour fade moves, so it is not flat)
   if (flat && (!isFlat(rgba) || (flat.length && !flat.every((c, j) => Math.abs(c - rgba[j]) <= 2)))) flat = null;
   else if (flat && !flat.length) flat = [rgba[0], rgba[1], rgba[2]];
-  if (textCheck) { await seek(i / fps); checkText(n, i, await page.evaluate(measureText)); }
+  if (textCheck) {
+    await seek(i / fps);
+    const items = await page.evaluate(measureText);
+    checkText(n, i, items, items.some((it) => it.fg) ? await backgroundShot() : null);
+  }
   if ((n + 1) % Math.max(1, Math.round(list.length / 10)) === 0) console.error(`  ${n + 1}/${list.length} frames`);
 }
 if (!audioOnly) console.log(`frames: ${list.length} in ${((Date.now() - t0) / 1000).toFixed(1)}s -> ${FRAMES}`);
+// a <video> left playing runs on its own clock, so the frame it shows depends on when the screenshot was taken
+const playing = audioOnly ? 0 : await page.evaluate(() => [...document.querySelectorAll('video')].filter((v) => !v.paused).length);
+if (playing) console.warn(`warning: ${playing} video${playing > 1 ? 's play' : ' plays'} on its own clock: pause it and seek it to its source time in renderAt (engines.md, Video clips locked to t)`);
 if (textCheck && !audioOnly) {
   // report what lasts: half a second in a full render (text moving through a margin is fine), any still
   const minRun = stills ? 1 : Math.max(1, Math.round(fps / 2)), found = [];
@@ -278,6 +319,7 @@ if (textCheck && !audioOnly) {
     overflow: (f) => `"${f.what}" runs past the side of its box at ${f.at}`,
     lines: (f) => `"${f.what}" takes ${f.d}, at ${f.at}`,
     collide: (f) => `${f.what} overlap at ${f.at}`,
+    contrast: (f) => `"${f.what}" reaches ${f.d} against 90% of the background under it at ${f.at}, under ${MIN_CONTRAST}:1 (numbers.md, Contrast behind text)`,
   };
   if (!textFrames || !textMost) console.log('text: no DOM text on any checked frame (text drawn on a canvas or in WebGL is not measured)');
   else console.log(`text: ${textFrames} frames checked, up to ${textMost} text boxes on a frame, ${found.length ? found.length + ' issue' + (found.length > 1 ? 's' : '') : 'no issues'}`);

@@ -96,6 +96,18 @@ A feed shows a square post about 330 to 390 pt wide on a phone (a screen's width
 - A product screen shrunk into a card takes its labels below that: in the fourth end-to-end test they were 16 to 24 px. Crop to the part of the screen that matters and scale it up until the labels the viewer must read reach 36 px, or leave them as texture and say the words in a headline.
 - Scale for other widths: at 1920 wide, multiply by 1920 / 1080.
 
+## Contrast behind text
+
+The background serves the text. A bright, busy background behind a white title takes the letters' edges away, however good the background looks on its own.
+
+- Keep a pocket under text the viewer must read: under white text the background stays at or below grey 64 of 255 (25%), under near-black text at or above 204 (80%). White on grey 64 is about 10:1 and black on 204 about 13:1, well past the 4.5:1 floor below.
+- Over a busy background, put a dark pocket under the text, a radial gradient from 55% black to transparent, and bring it in with the text.
+- Inside the pocket, background elements (particles, shapes, lines) take the dark side of the palette at opacity 0.35 or less.
+- To test a frame by eye: take the frame where the title is complete and turn it grey. Any part of the background as light as the letters is too busy. With the text hidden, the background should look calm.
+- `render.mjs --text` measures it on every frame: it captures the frame again with the glyphs transparent, compares the text's colour (with its opacity) against every background pixel under its lines, and reports text whose ratio is under 4.5:1 for more than 10% of them. The 10% lets a few bright specks pass; a background half as light as the text does not. 4.5:1 is WCAG's ratio for normal text: the frame plays on a phone at about a third of its size, so text that is large in the frame is normal-sized on the screen. A text shadow stays in the capture but covers only part of the line: white text with a triple 6 px black shadow on a light grey panel darkened 43% of the pixels under its line and still read 1.4:1, the same as without it. The fix is the pocket. The check makes `--text` about 2.6 times slower (60 frames at 1080x1080 in 10.7 s, against 4.0 s without it).
+
+The pocket levels, the dark gradient, the 0.35 opacity and the grey test come from bang-motion v1.19.0 by Bang Tutorial (MIT, `references/techniques.md` 1b); the levels are read here as grey values of 255.
+
 ## A product action (UI)
 
 A UI shot is an event the viewer can follow: the starting state, the cursor reaching the control, the press, the result, and a hold long enough to read it. Starting values at 30 fps, from a worked launch-clip example (@beamnxw on X, 2026-10-10), to adjust after the first preview:
@@ -113,6 +125,31 @@ A UI shot is an event the viewer can follow: the starting state, the cursor reac
 - The cursor's path and resting point stay clear of every label; one that crosses text being read is a defect.
 - Sound: the click one frame after the press, the reveal one frame after the result appears (sound.md).
 - A layer that enters over readable text (a sheet over a list, a screen over a lock screen, a card over a page) is opaque within two frames: opacity `min(1, 3k)` on its eased progress `k`, while its slide or scale runs the whole reveal. A cross-fade between two screens that both hold text shows both texts at once. In a 4:48 narrated explainer (narration.md), four such fades let the text behind read through for 0.2 to 0.8 s.
+- Rebuild the product's UI simplified, from its own components, colours, terms and font, never as a screenshot: the titles, buttons and labels the story names stay readable (36 px at 1080 wide, Text size on a phone), and every other small text becomes a rounded grey bar of about its length. One screen, one task: one panel, one action, one result; crop out or blur what the action doesn't use. Panels float without a device frame (a white card, round corners, a wide soft shadow); keep the laptop or phone frame for a statement or the closing beat (bang-motion, `references/opener-konsep.md`, Building UI for animation).
+- For a click the story turns on, the camera comes to it (Camera (2D)): it starts 0.3 to 0.5 s before the cursor arrives and zooms to 1.4 to 2.2x over 0.6 to 0.9 s on an ease-in-out, with the control a little above the frame's centre; it holds almost still through the press, then pulls back to wide or pans to the panel that changed over 0.7 to 1 s. One to three clicks per act get this; the others play wide. Never zoom in and out faster than about every 1.5 s.
+
+## Camera (2D)
+
+When a 2D piece feels static although its elements move, change the shot size: the camera comes close to one element, then pulls back. A breath of a few percent of scale is nearly invisible, so it stays a base layer under the shot changes.
+
+| Shot | The element it frames |
+|---|---|
+| Wide | the whole composition, for many elements or wide text read together |
+| Medium close-up | the element and a little context: it fills a third to a half of the frame |
+| Close-up | one element or its detail fills most of the frame (bang-motion's example frames a title at 0.6), for emphasis, an action, or small text that must read |
+
+- Aim at the element telling the story now: the text that just appeared, the object arriving, the control being clicked. The camera meets it; it does not chase it.
+- Change shot on the beats of the content: close on A, back to wide when the composition needs the whole frame, close on B. Two shots of one size in a row read flat.
+- Two tempos: a shot change, short, on ease-in-out-cubic (0.6 to 0.9 s); and while holding, a slow push on ease-in-out-sine. A held ending (a logo, a call to action) gets the slow push too.
+- At a cut the camera may already be close, with no move; a scene can open in close-up and pull back.
+- Text appears once the camera has arrived, never during the move. Don't swing near and far faster than the viewer can read.
+- Scale from the element's size, so the shot fits whatever it frames: `s = max(1, min(W x fill / w, H x fill / h))`. A UI label of 16 px reaches 36 px at `s = 2.25` (Text size on a phone).
+- Build the world on one wrapper (`#world`, `transform-origin: 0 0`) moved by `translate(tx, ty) scale(s)`, with `tx = W/2 - fx x s` and `ty = H/2 - fy x s` for a focus point `(fx, fy)` in world pixels. Clamp so the world's edge never shows: for a world reaching `m` pixels past the frame on every side, `tx` in `[W - (W + m) x s, m x s]` and `ty` in `[H - (H + m) x s, m x s]` (checked on 40,000 random shots: the frame stayed covered every time, and every unclamped shot put its focus at the frame's centre).
+- Give the world overscan, or the clamp pushes targets near the edge off centre: in a simulation of medium close-ups on targets anywhere in a 1920x1080 composition, the target sat off centre in 53% of shots with no overscan, 24% with 120 px and 6% with 240 px.
+- Labels, captions and on-screen UI that must not grow or crop sit on a layer outside the wrapper. One scale system per wrapper: a breath or a push goes into the same camera function, never a second scale on the same element.
+- Check a still at the peak of every shot: no text cut by the frame, no world edge showing, and raster assets sharp at that scale (their pixels at least the scale times their size on screen).
+
+The shot sizes, the rig and its clamp, and the camera that follows a click (A product action) come from bang-motion v1.19.0 (`references/techniques.md` 3b and 8); the clamp and overscan figures are this skill's own checks.
 
 ## Camera (3D)
 
@@ -154,5 +191,5 @@ The five that do most of the work in a short loop, from Thomas and Johnston's *T
 
 ## Accessibility
 
-- Text keeps 4.5:1 contrast on every frame, including over moving backgrounds (WCAG 1.4.3).
+- Text keeps 4.5:1 contrast on every frame, including over moving backgrounds (WCAG 1.4.3, Contrast behind text).
 - Nothing flashes more than 3 times a second (WCAG 2.3.1).

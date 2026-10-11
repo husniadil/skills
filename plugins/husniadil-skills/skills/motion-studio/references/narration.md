@@ -17,6 +17,31 @@ A narrated explainer runs on the voice's clock. Generate the voice before any an
 - Make the lookup throw when the phrase is not in the narration, so an edit to the script fails the render instead of leaving a beat on the wrong words.
 - A beat that shows something lands on the phrase that names it; an action (a cursor travel, a press) ends on it. In the product actions this followed numbers.md, A product action: the result reveals 15 frames after the press.
 
+## A voice that arrives after the picture
+
+When the picture is built first, silent, and the voice comes later (a person's read, a client's file), retime the picture to the voice and keep the scenes as they are.
+
+1. Ask for one file, one paragraph per scene, with a clear breath between paragraphs. One file keeps one clock; a file per scene needs a sync point each.
+2. Find the loudest 10 ms: `ffmpeg -i vo.wav -af astats=length=0.01:measure_overall=RMS_peak:measure_perchannel=none -f null -` prints `RMS peak dB`.
+3. List the pauses: `ffmpeg -i vo.wav -af silencedetect=noise=<RMS peak - 30>dB:d=0.45 -f null -` prints every pause of 0.45 s or more with its `silence_end` and `silence_duration`.
+4. For N scenes, the N - 1 longest pauses are the joins, and each one's `silence_end` is where the next scene's speech starts. Compare the shortest join with the longest pause left; when the two come close, place the joins from the script instead.
+5. Retime piecewise linear. `OLD` holds the picture's scene starts and its end; `NEW` holds each scene's speech start less the lead the scene had before its voice (The timeline from the timings), 0 for the first, and the voice's length plus the tail for the end.
+
+```js
+const T = (t) => { let k = 0; while (k < OLD.length - 2 && t >= OLD[k + 1]) k++; return NEW[k] + (t - OLD[k]) * (NEW[k + 1] - NEW[k]) / (OLD[k + 1] - OLD[k]); };
+```
+
+Write every beat's start as `T(old start)` and keep its duration: a 0.6 s entrance stays 0.6 s, and only where it starts moves. A move that must end on a boundary, such as a transition into the next scene, is placed back from the new boundary (`T(cut) - 0.9`), so it still ends there.
+
+Tested on this piece's narration made into one file, its nine scenes joined with 0.8 s of silence (274.6 s, the RMS peak at -12.7 dB). silencedetect at -42.7 dB found the eight joins as its eight longest pauses, 0.81 to 1.38 s, against 0.68 s for the longest pause inside a scene. Reading 10 ms RMS windows instead of samples, the method bang-motion's tool uses, measured the joins longer (1.02 to 1.52 s) and found every scene's speech start but the first to the 10 ms (the first counts from 0, since its 0.06 s lead is too short to be a pause); thresholds from -25 to -40 dB moved the starts by 10 ms at most. The two methods put each scene's start within 11 ms of each other. A fixed paragraph gap of 0.8 s, the tool's default, caught the shortest join by 0.013 s with silencedetect, which is why the count of scenes picks the joins here.
+
+## Staging an explainer
+
+- Each phrase of the voice adds one element and the earlier ones stay, so a scene ends on 3 to 5 elements (5 at most) that explain together: the subject, the proof (a document, a screen, a clipping), the scale (a number, or one image repeated into a grid), a label or a date. One image and one sentence per scene is a slideshow, however the camera moves.
+- Everything the voice names appears in its scene: the company, the person, the place, the product, the 17 factories. List them from the script before building. A real person's face is never generated.
+- No three scenes in a row from one viewpoint: give each fact its own instrument (a map, a gauge, a profile, a close detail).
+- An object the scene holds on stays alive: it sways 22 to 28 px over 1.3 to 1.8 s on ease-in-out-sine, turns 1.5 degrees either way, and grows from 1 to 1.06 across the scene, each object on its own phase. A sway of 10 px over 2 s reads as still. This is the held object's own motion, so SKILL.md's ambient limit (under 5% of the hero's travel) is not its measure; the words being read stay still either way.
+
 ## Captions
 
 - Cut the narration at every sentence end first. A sentence under 24 characters joins the next when the two fit; anything longer than the limit splits at the comma, then the space, nearest its middle, until each piece fits.
@@ -48,3 +73,4 @@ A TTS voice is peaky: the mix came out at -20.4 LUFS with a sample peak of -2.8 
 
 - ElevenLabs API reference, `text-to-speech/convert-with-timestamps` (request fields `previous_text`, `next_text`, `seed`, `language_code`; the response's alignment), the models page and the pricing page, checked 2026-10-11. The HTTP 402 and 400 refusals, the three models' timestamps and the credit counter were seen on the API that day.
 - Remotion 4.0.534: `--muted`, `--codec=wav` and `--props`, run on this piece.
+- bang-motion v1.19.0 by Bang Tutorial (MIT): the pause detector and the retime to a later voice (`scripts/vo-pauses.html`, `references/explainer.md`), one element per phrase, every named entity on screen and the sway (`references/explainer.md`), and the change of viewpoint (`SKILL.md`). Read, not run; the measurements here are this skill's own, with ffmpeg 9.0.2.
