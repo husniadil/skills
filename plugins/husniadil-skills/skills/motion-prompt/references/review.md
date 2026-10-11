@@ -68,8 +68,8 @@ From the source's follow-ups and this skill's end-to-end test. engines.md, Liqui
 | Symptom | Fix to send |
 |---|---|
 | Chrome reads as white or grey plastic | Darken the studio to 0.1 grey with a white cyc behind the subject, black on the camera side, so the chrome shows dark and bright bands. |
-| Flat faces read as flat charcoal | Add a thin horizon strip inside the camera-side panel for them to reflect. |
-| The glint is a flood light, or invisible | Keep the strip in the reflections only, narrow it (0.6 degrees), and keep the base environment from saturating. |
+| Flat faces read as flat charcoal | Add a thin horizon strip inside the camera-side panel, at the elevation those faces reflect, for them to reflect. |
+| The glint is a flood light, or invisible | Keep the strip in the reflections only, narrow it (0.6 degrees), keep the base environment from saturating, and sweep only the directions the subject reflects. |
 | Bevels fuse neighbouring letters | Space the glyphs by their measured outlines, not by advance widths alone. |
 | A letter or the word space is missing | Lay the letters out from the font's advance widths, the space included, and check the word on one still. |
 | A shape morph passes through a flat coin | Reveal the target inside a growing sphere and shrink the source into it. |
@@ -77,5 +77,6 @@ From the source's follow-ups and this skill's end-to-end test. engines.md, Liqui
 | Squash lifts things off the floor | Scale the whole field about the floor contact point. |
 | A melt erases the letter halfway | Regrow the droplets first, then retract the letters into them. |
 | Parts leave the frame at the widest moment | Render a still at that frame, then pull the camera back or shorten the arc. |
+| The hero reads as a speck, or the floor fills half the frame | Push the camera in or scale the hero until it spans a quarter of the frame width on frame 0, and lower the horizon line. |
 
 When a fix works, add its line to the render contract. The contract is the lab's memory: every line is a failure that won't come back.

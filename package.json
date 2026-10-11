@@ -1,6 +1,6 @@
 {
   "name": "husniadil-skills",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "description": "Agent skills by Husni Adil Makmur: per-model prompting guides, effort-pinned subagents for Claude Code and pi, /goal conditions, motion-design prompts with a frame-exact renderer, video analysis, audio and YouTube transcripts, and workflow commands for gates, audits, fixes, commits and plans.",
   "license": "MIT",
   "author": "Husni Adil Makmur (https://github.com/husniadil)",

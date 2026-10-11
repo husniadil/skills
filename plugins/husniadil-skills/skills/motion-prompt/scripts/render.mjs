@@ -208,10 +208,10 @@ if (flag('loop') && !stills && !audioOnly) {
   const local = ((diffs[0] ?? 0) + (diffs[diffs.length - 1] ?? 0)) / 2, scale = Math.max(local, 0.25 * median);
   if (median < 0.05) console.log(`loop: too little motion to judge (median step ${median.toFixed(3)})`);
   else {
-    const line = `steps beside the seam ${local.toFixed(2)}, seam ${seam.toFixed(2)}, frame N vs 0 ${period.toFixed(2)}, median step ${median.toFixed(2)}`;
+    const line = `steps beside the seam ${local.toFixed(2)}, seam ${seam.toFixed(2)}, frame N vs 0 ${period.toFixed(2)}, median step ${median.toFixed(2)}, largest step ${maxStep.toFixed(2)}`;
     if (local >= 0.25 * median && seam < 0.3 * local) failures.push(`loop: frame ${N - 1} is almost frame 0 (${line}): one frame is held at the seam, so the motion closes a frame early`);
     else if (period > 0.5 * scale) failures.push(`loop: frame ${N} does not match frame 0 (${line}): the motion does not close in ${seconds}s`);
-    else if (seam > 2.5 * scale && seam > 1.25 * maxStep) failures.push(`loop: the seam jumps (${line}, largest step inside ${maxStep.toFixed(2)})`);
+    else if (seam > 2.5 * scale && seam > 1.25 * maxStep) failures.push(`loop: the seam jumps (${line})`);
     else console.log(`loop: closes (${line})`);
   }
 }

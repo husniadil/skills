@@ -39,7 +39,7 @@ Facts below were checked on 2026-10-11 against each project's repository or docs
 How the source's chrome title loop did it, after ten follow-ups:
 
 - One signed-distance field for everything that should merge (blob, droplets, letters), joined with a smooth minimum: k 0.35 while the blob is whole, falling to 0.1 as the droplets part.
-- Letters as distance fields: bake each glyph's outline into a signed-distance texture on the GPU (one channel per glyph; 2048 x 512 held a word), extruded as a rounded box, so a letter can merge with a droplet.
+- Letters as distance fields, extruded as a rounded box, so a letter can merge with a droplet. The source baked the word into one 2048 x 512 signed-distance texture, then gave each glyph its own distance so the letters could form one at a time. An RGBA texture holds four glyphs, so a longer word needs an atlas with one cell per glyph (the second end-to-end test used 1792 x 256, seven 256 px cells) or a second texture. A bake that works: draw each glyph white on black with Canvas 2D `fillText`, run an exact Euclidean distance transform on the inside and the outside (two passes, on the CPU), store outside minus inside, and upload the result once before setting `window.__ready`.
 - A droplet becomes its letter by revealing the letter inside a sphere that grows from the droplet (smooth maximum, k 0.05, ease-out, 0.4 s) while the droplet shrinks into it. Mixing the two distances (`mix(sphere, letter)`) passes through flat coins.
 - New droplets grow from a negative radius (-0.4), so their pull on the blob fades in. A droplet that appears at full size pops a bump onto the blob.
 - Squash and stretch the whole field about the point where it touches the floor. Scaling the sphere centres lifts everything off the floor.

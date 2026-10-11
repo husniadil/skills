@@ -69,7 +69,7 @@ Render contract:
 - Loops: frames 0 to N-1 are rendered and frame N equals frame 0, so every periodic motion completes whole cycles in the loop.
 ```
 
-With sound, add: `Expose window.renderAudio(), returning the AudioBuffer of an OfflineAudioContext that synthesizes the whole score; renderAudio({ only: 'hits' }) and renderAudio({ only: 'bed' }) render one part alone, for measuring.`
+With sound, add: `Expose window.renderAudio(), returning the AudioBuffer of an OfflineAudioContext(2, 48000 * <seconds>, 48000) that renders the whole score; renderAudio({ only: 'hits' }) and renderAudio({ only: 'bed' }) render one part alone. Seed any noise.`
 
 ## Output
 
@@ -100,7 +100,7 @@ It needs Node 18+, Playwright with Chromium, and ffmpeg. It resolves Playwright 
 | `--gpu` | WebGL on the real GPU, and prints which renderer ran (a software renderer is correct, only slower). |
 | `--audio` | Renders `window.renderAudio()`, brings it to -14 LUFS under a -2 dBTP true-peak limiter, muxes it, and measures the decoded MP4. |
 | `--audio-only` | The same audio pass over frames already rendered, to iterate the mix. |
-| `--gif`, `--gif-fps 24` | A GIF with one palette, sized within X's limits. |
+| `--gif`, `--gif-fps 24` | A GIF with one palette, resampled to `--gif-fps` (default 24) and sized within X's limits. |
 | `--out dir` | Default `out/<name>/`. |
 
 It writes `frames/`, a 12-frame `sheet.png`, and `<name>.mp4` (H.264 High, yuv420p, tagged BT.709, faststart). It exits 1 on a page error, on a frame that draws differently the second time, on a failed loop check, on decoded audio over -1 dBTP or more than 1 LU from -14 LUFS, and on a GIF over X's frame or size limit. The loop verdicts are heuristics: read the numbers it prints.

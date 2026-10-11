@@ -13,13 +13,14 @@ SOUND: synthesize everything in code with the Web Audio API, no samples, no down
 ## Timing
 
 - **A hit lands one frame after its picture.** Light reaches us before sound, so a sound that arrives a little late reads as right and one that arrives early reads as wrong. A hit on frame F peaks at `(F + 1) / fps` seconds.
-- At 48 kHz a frame is 1600 samples at 30 fps and 800 at 60 fps, so a hit on frame F peaks on sample `(F + 1) * 48000 / fps`. Its peak is the first sample that reaches 90% of its largest value in its first 30 ms.
+- At 48 kHz a frame is 1600 samples at 30 fps and 800 at 60 fps, so a hit on frame F peaks on sample `(F + 1) * 48000 / fps`. Its peak is the first sample that reaches 90% of its largest value in its first 30 ms, or up to the next hit's onset when that comes sooner, so a neighbour's tail can't move it.
 - Put the bed on the same beat grid as the cuts (numbers.md), computed per beat from time.
-- End the attack on the frame: start the envelope 0.5 to 1 ms before `(F + 1) / fps`, and start the oscillator so that sample is a crest (a sine reaches its crest a quarter period after it starts). Measured this way, an 880 Hz hit with a 0.75 ms attack peaked 0.04 ms early; the same hit with its attack starting on the frame peaked 0.77 ms late. Sines that start at phase 0 and waveshapers pushed the peaks 2.5 to 11 ms late in the source's measurements.
+- End the attack on the frame: start the envelope 0.5 to 1 ms before `(F + 1) / fps`, and start the oscillator so that sample is a crest (a sine reaches its crest a quarter period after it starts). Measured this way, an 880 Hz hit with a 0.75 ms attack peaked 0.04 ms early; the same hit with its attack starting on the frame peaked 0.77 ms late. A hit with several partials needs every partial at a crest on that sample (the source kept "every gloop harmonic in cosine phase"), or the sum peaks later. Sines that start at phase 0 and waveshapers pushed the peaks 2.5 to 11 ms late in the source's measurements.
 
 ## Balance
 
 - Every hit, or every pair of hits on one frame, sits 3 to 6 dB over the bed: the RMS of the hit's first 60 ms against the RMS of the bed alone over the same 60 ms. The bed is everything that isn't a hit. That was the source's working target (it K-weighted both), reached in every piece by measurement.
+- Keep bed transients out of a hit's 60 ms: drop or move the kick or shaker where a hit plays, as the source did ("offbeat shaker only where no hit plays"). A kick one frame after a hit swells the bed in that window, and in the second end-to-end test it left two hits 10 to 11 dB under the bed at their intended level.
 - Keep the energy where phone speakers play: the first mix of the source's product film put 80% of its energy under 60 Hz, and the chrome loop's mix lost 4.5 dB through a 150 Hz high-pass. Move bass and sub up an octave, open filters, and raise the pad instead.
 - Balance by removing energy: every boost is partly taken back by the limiter. When a short hit can't get 3 dB over the bed without the limiter catching it, lower the bed instead; the gain stage brings the whole mix back up to -14 LUFS.
 - A peaky score (square waves, hard transients, everything cresting on one sample) makes the limiter take a lot, and then the piece ends quieter than -14 LUFS. Tame the hottest hits in the score rather than limiting harder.
@@ -35,7 +36,7 @@ SOUND: synthesize everything in code with the Web Audio API, no samples, no down
 Pick one or two per round:
 
 ```text
-Render the hits alone with renderAudio({ only: 'hits' }) and list, for every hit, the frame it belongs to and how many milliseconds its peak (the first sample at 90% of its largest value in its first 30 ms) sits from (frame + 1) / fps. Fix any hit more than 1 ms off by ending its attack on that sample.
+Render the hits alone with renderAudio({ only: 'hits' }) and list, for every hit, the frame it belongs to and how many milliseconds its peak (the first sample at 90% of its largest value in its first 30 ms, or up to the next hit's onset) sits from (frame + 1) / fps. Fix any hit more than 1 ms off by ending its attack on that sample.
 Render the bed alone with renderAudio({ only: 'bed' }). For every hit, compare the RMS of its first 60 ms with the bed's RMS over the same 60 ms. Bring every hit to 3 to 6 dB over the bed by trimming the bed or the hit, not by boosting.
 Measure the share of energy under 60 Hz, 60 to 150 Hz and 150 Hz to 6 kHz. If most of it is under 150 Hz, move the bass up an octave and open its filter.
 The limiter took more than 3 dB on the hottest hit. Find which partials crest on the same sample and lower or re-phase them.
