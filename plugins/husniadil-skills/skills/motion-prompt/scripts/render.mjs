@@ -201,16 +201,18 @@ if (!audioOnly) {
 }
 
 // --- loop: frame N must be frame 0 again, and the seam N-1 -> 0 must look like the steps beside it
-// (beside it, because an ease-in-out slows to almost nothing at the seam on purpose). A big seam is a jump only when it
-// is bigger than every step inside the clip: a cut or a beat onset that lands on frame 0 is as big as the others.
+// (beside it, because an ease-in-out slows to almost nothing at the seam on purpose). A held frame is a seam much smaller
+// than the steps on both sides: one slow side is a move easing into the seam, or out of it. A big seam is a jump only
+// when it is bigger than every step inside the clip: a cut or a beat onset that lands on frame 0 is as big as the others.
 if (flag('loop') && !stills && !audioOnly) {
   const sorted = [...diffs].sort((x, y) => x - y), median = sorted[Math.floor(sorted.length / 2)] ?? 0, maxStep = sorted[sorted.length - 1] ?? 0;
   const period = meanDiff((await frame(N)).rgba, first), seam = meanDiff(prev, first);
-  const local = ((diffs[0] ?? 0) + (diffs[diffs.length - 1] ?? 0)) / 2, scale = Math.max(local, 0.25 * median);
+  const before = diffs[diffs.length - 1] ?? 0, after = diffs[0] ?? 0;
+  const local = (before + after) / 2, near = Math.min(before, after), scale = Math.max(local, 0.25 * median);
   if (median < 0.05) console.log(`loop: too little motion to judge (median step ${median.toFixed(3)})`);
   else {
-    const line = `steps beside the seam ${local.toFixed(2)}, seam ${seam.toFixed(2)}, frame N vs 0 ${period.toFixed(2)}, median step ${median.toFixed(2)}, largest step ${maxStep.toFixed(2)}`;
-    if (local >= 0.25 * median && seam < 0.3 * local) failures.push(`loop: frame ${N - 1} is almost frame 0 (${line}): one frame is held at the seam, so the motion closes a frame early`);
+    const line = `steps beside the seam ${before.toFixed(2)} and ${after.toFixed(2)}, seam ${seam.toFixed(2)}, frame N vs 0 ${period.toFixed(2)}, median step ${median.toFixed(2)}, largest step ${maxStep.toFixed(2)}`;
+    if (near >= 0.25 * median && seam < 0.3 * near) failures.push(`loop: frame ${N - 1} is almost frame 0 (${line}): one frame is held at the seam, so the motion closes a frame early`);
     else if (period > 0.5 * scale) failures.push(`loop: frame ${N} does not match frame 0 (${line}): the motion does not close in ${seconds}s`);
     else if (seam > 2.5 * scale && seam > 1.25 * maxStep) failures.push(`loop: the seam jumps (${line})`);
     else console.log(`loop: closes (${line})`);
