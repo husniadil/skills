@@ -92,7 +92,7 @@ When a beat isn't a whole number of frames, compute beat n at `n * 60 / BPM` sec
 
 A feed shows a square post about 330 to 390 pt wide on a phone (a screen's width, less any margin: an estimate, not a measurement), so 1 pt is about 3 px of a 1080 frame. Apple's guidelines put the minimum text size on iOS at 11 pt and the default at 17 pt (Human Interface Guidelines, Typography, checked 2026-10-11).
 
-- Text the viewer must read: at least 36 px at 1080 wide (11 pt at the narrow end). Body-like text reads comfortably from about 56 px (17 pt).
+- Text the viewer must read: a CSS font-size of at least 36 px at 1080 wide (11 pt at the narrow end), after any scale transform. `render.mjs --text` checks it. Body-like text reads comfortably from about 56 px (17 pt).
 - A product screen shrunk into a card takes its labels below that: in the fourth end-to-end test they were 16 to 24 px. Crop to the part of the screen that matters and scale it up until the labels the viewer must read reach 36 px, or leave them as texture and say the words in a headline.
 - Scale for other widths: at 1920 wide, multiply by 1920 / 1080.
 

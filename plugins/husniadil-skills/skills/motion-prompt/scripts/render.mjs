@@ -4,16 +4,18 @@
 // defines it, and every CSS / Web Animations API animation is paused and seeked to t. Each frame is a screenshot.
 //
 // usage: node render.mjs <page.html[?query] | url> --seconds S [--fps 30] [--size 1080x1080] [--out dir]
-//          [--frames 0,24,48]   stills only: those frames and a labelled sheet, no video
+//          [--frames 0,24,48]   stills only: those frames (or a range, 157-159) and a labelled sheet, no video
 //          [--blur N]           N sub-frames per frame over half a frame (a 180-degree shutter), averaged in linear light
 //          [--ss N]             supersampling: render at N times the device pixel ratio and average each N x N block in
 //                               linear light (the page sizes its canvas by window.devicePixelRatio)
 //          [--gpu]              render WebGL on the real GPU and say which renderer ran
 //          [--audio]            render the page's window.renderAudio() (an OfflineAudioContext's AudioBuffer), bring it to
-//                               -14 LUFS under a -2 dBTP true-peak limiter, mux it, and measure the decoded MP4
+//                               -14 LUFS (--lufs) under a -2 dBTP true-peak limiter, mux it, and measure the decoded MP4
 //          [--audio-only]       the same audio pass over frames already rendered: iterate the mix without re-rendering
 //          [--loop]             check that the motion closes: frame N matches frame 0 and the seam N-1 -> 0 is a normal step
 //          [--gif] [--gif-fps 24]
+//          [--text]             measure the DOM text on every frame: size, edge margin, overflow, line limits, overlaps
+//          [--hits 158,178]     render the score's hits and bed alone and report each hit's offset and level
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -21,9 +23,9 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { pathToFileURL } from 'node:url';
 
-const LUFS = -14, CEILING_DBTP = -2, MAX_DECODED_DBTP = -1;   // AAC adds 0.4 to 3 dB of true peak: limit at -2, then check the decoded MP4 against -1
+const CEILING_DBTP = -2, MAX_DECODED_DBTP = -1;   // AAC adds 0.4 to 3 dB of true peak: limit at -2, then check the decoded MP4 against -1
 const X_GIF = { bytes: 15e6, mobileBytes: 5e6, frames: 350, width: 1280, height: 1080 };   // docs.x.com media best practices, help.x.com
-const USAGE = 'usage: node render.mjs <page.html[?query] | url> --seconds S [--fps 30] [--size 1080x1080] [--out dir] [--frames 0,24,48] [--blur N] [--ss N] [--gpu] [--audio | --audio-only] [--loop] [--gif] [--gif-fps 24]';
+const USAGE = 'usage: node render.mjs <page.html[?query] | url> --seconds S [--fps 30] [--size 1080x1080] [--out dir] [--frames 0,24,48] [--blur N] [--ss N] [--gpu] [--audio | --audio-only] [--lufs -14] [--loop] [--gif] [--gif-fps 24] [--text] [--hits 158,178]';
 
 const argv = process.argv.slice(2);
 const opt = (name, dflt) => { const i = argv.indexOf('--' + name); return i >= 0 ? argv[i + 1] : dflt; };
@@ -38,15 +40,21 @@ const [W, H] = opt('size', '1080x1080').split('x').map(Number);
 const blur = Math.max(1, parseInt(opt('blur', '1'), 10));
 const SS = Math.max(1, parseInt(opt('ss', '1'), 10));
 const gifFps = Number(opt('gif-fps', '24'));
-const stills = opt('frames') ? opt('frames').split(',').map((s) => parseInt(s, 10)) : null;
+// a frame list: 0,24,48 or a range 157-159, or both
+const frameList = (s) => s.split(',').flatMap((p) => { const [a, b] = p.split('-').map((v) => parseInt(v, 10)); return b >= a ? Array.from({ length: b - a + 1 }, (_, k) => a + k) : [a]; });
+const stills = opt('frames') ? frameList(opt('frames')) : null;
+const hits = opt('hits') ? frameList(opt('hits')) : null;
 const audioOnly = flag('audio-only'), withAudio = audioOnly || flag('audio');
+const LUFS = Number(opt('lufs', '-14'));   // -14 suits a score with a bed; a few hits alone may want less (sound.md)
 if (!(seconds > 0) || !(fps > 0) || !(W > 0) || !(H > 0)) die(USAGE, 2);
+if (!(LUFS >= -30 && LUFS <= -9)) die('--lufs takes a target between -30 and -9', 2);
 if (stills && withAudio) die('--frames renders stills only: drop --audio', 2);
 if (stills && flag('loop')) die('--frames renders stills only: --loop needs the full render', 2);
 if (W % 2 || H % 2) die(`--size ${W}x${H}: H.264 in yuv420p needs an even width and height`, 2);
 const N = Math.round(seconds * fps);
 if (Math.abs(N - seconds * fps) > 1e-6) console.warn(`warning: ${seconds}s x ${fps}fps is not a whole number of frames; rendering ${N}`);
 if (stills && stills.some((f) => !(f >= 0 && f <= N))) die(`--frames must be between 0 and ${N}`, 2);
+if (hits && hits.some((f) => !(f >= 0 && f < N))) die(`--hits must be frames between 0 and ${N - 1}`, 2);
 
 // --- requirements: say what is missing and how to install it, never install it
 function loadPlaywright() {
@@ -184,6 +192,62 @@ async function frame(i) {
 const file = (i) => path.join(FRAMES, `${String(i).padStart(5, '0')}.png`);
 const failures = [];
 
+// --- text (--text): DOM text measured on every rendered frame; text drawn on a canvas or in WebGL is not seen here
+const textCheck = flag('text');
+// one entry per visible text node: its rendered font size, its line boxes, and the block box it sits in. A line counts
+// when at least 3 of 5 points along it show the text: not clipped, not off the page, not under an opaque element.
+const measureText = () => {
+  // hit-testing skips pointer-events: none, which changes nothing on screen: let it see every element
+  if (!document.getElementById('render-mjs-hits')) { const st = document.createElement('style'); st.id = 'render-mjs-hits'; st.textContent = '*{pointer-events:auto!important}'; document.head.append(st); }
+  const opaque = (e) => { const s = getComputedStyle(e), m = s.backgroundColor.match(/[\d.]+/g), a = m ? (m.length > 3 ? Number(m[3]) : 1) : 0; return a > 0.5 || s.backgroundImage !== 'none' || /^(img|canvas|svg|video)$/i.test(e.tagName); };
+  const shows = (el, x, y) => { for (const e of document.elementsFromPoint(x, y)) { if (e === el || el.contains(e)) return true; if (opaque(e)) return false; } return false; };
+  const out = [], walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+    const text = n.textContent.replace(/\s+/g, ' ').trim(), el = n.parentElement;
+    if (!text || !el || el.closest('[aria-hidden="true"], script, style')) continue;
+    let o = 1;
+    for (let e = el; e && o >= 0.5; e = e.parentElement) { const s = getComputedStyle(e); o = s.display === 'none' || s.visibility === 'hidden' ? 0 : o * Number(s.opacity); }
+    if (o < 0.5) continue;
+    const r = document.createRange(); r.selectNodeContents(n);
+    const raw = [...r.getClientRects()].filter((q) => q.width > 0.5 && q.height > 0.5);
+    const seen = raw.map((q) => [0.1, 0.3, 0.5, 0.7, 0.9].filter((f) => shows(el, q.left + f * q.width, (q.top + q.bottom) / 2)).length);
+    if (!seen.some((k) => k > 0)) continue;
+    const lines = raw.filter((q, k) => seen[k] >= 3).map((q) => [q.left, q.top, q.right, q.bottom]);
+    let box = el; while (box.parentElement && getComputedStyle(box).display === 'inline') box = box.parentElement;
+    const b = box.getBoundingClientRect(), scale = el.offsetHeight ? el.getBoundingClientRect().height / el.offsetHeight : 1;
+    out.push({ key: text.slice(0, 48), px: parseFloat(getComputedStyle(el).fontSize) * scale, lines, raw: raw.map((q) => [q.left, q.right]), box: [b.left, b.top, b.right, b.bottom].map(Math.round), max: Number(box.closest('[data-max-lines]')?.dataset.maxLines) || 0 });
+  }
+  return out;
+};
+const textHits = new Map();   // "kind|what" -> [{ n: position in the frame list, i: frame, d: detail }]
+let textFrames = 0, textMost = 0;
+function checkText(n, i, items) {
+  textFrames++; textMost = Math.max(textMost, items.length);
+  const add = (kind, what, d = '') => { const k = kind + '|' + what; if (!textHits.has(k)) textHits.set(k, []); textHits.get(k).push({ n, i, d }); };
+  const minPx = 36 * W / 1080, mx = 0.05 * W, my = 0.05 * H;
+  for (const it of items) {
+    if (it.px < minPx - 0.5) add('small', it.key, `${Math.round(it.px)} px`);
+    const inView = it.lines.every(([l, t, r, b]) => l >= 0 && t >= 0 && r <= W && b <= H);
+    if (inView && it.lines.some(([l, t, r, b]) => l < mx || t < my || r > W - mx || b > H - my)) add('safe', it.key);
+    // overflow from every line box: text past its box is not hit-tested there, so the visible lines would miss it
+    if (it.raw.some(([l, r]) => l < it.box[0] - 2 || r > it.box[2] + 2)) add('overflow', it.key);
+  }
+  // lines per box with a declared limit: tops more than half a line apart start a new line
+  const boxes = new Map();
+  for (const it of items.filter((x) => x.max)) { const k = it.box.join(','); if (!boxes.has(k)) boxes.set(k, { max: it.max, key: it.key, lines: [] }); boxes.get(k).lines.push(...it.lines); }
+  for (const { max, key, lines } of boxes.values()) {
+    const ls = [...lines].sort((a, b) => a[1] - b[1]); let count = 0, last = -Infinity;
+    for (const [, t, , b] of ls) if (t - last > (b - t) / 2) { count++; last = t; }
+    if (count > max) add('lines', key, `${count} lines, over its data-max-lines of ${max}`);
+  }
+  // two text boxes from different blocks drawn over each other
+  for (let a = 0; a < items.length; a++) for (let b = a + 1; b < items.length; b++) {
+    if (items[a].box.join() === items[b].box.join()) continue;
+    const hit = items[a].lines.some(([l1, t1, r1, b1]) => items[b].lines.some(([l2, t2, r2, b2]) => Math.min(r1, r2) - Math.max(l1, l2) > 2 && Math.min(b1, b2) - Math.max(t1, t2) > 2));
+    if (hit) add('collide', `"${items[a].key}" and "${items[b].key}"`);
+  }
+}
+
 // --- frames
 const list = audioOnly ? [] : stills || Array.from({ length: N }, (_, i) => i);
 const diffs = []; let first = null, prev = null, flat = list.length > 0 ? [] : null;
@@ -195,9 +259,30 @@ for (const [n, i] of list.entries()) {
   // the first frame's one colour on every frame (a full-frame colour fade moves, so it is not flat)
   if (flat && (!isFlat(rgba) || (flat.length && !flat.every((c, j) => Math.abs(c - rgba[j]) <= 2)))) flat = null;
   else if (flat && !flat.length) flat = [rgba[0], rgba[1], rgba[2]];
+  if (textCheck) { await seek(i / fps); checkText(n, i, await page.evaluate(measureText)); }
   if ((n + 1) % Math.max(1, Math.round(list.length / 10)) === 0) console.error(`  ${n + 1}/${list.length} frames`);
 }
 if (!audioOnly) console.log(`frames: ${list.length} in ${((Date.now() - t0) / 1000).toFixed(1)}s -> ${FRAMES}`);
+if (textCheck && !audioOnly) {
+  // report what lasts: half a second in a full render (text moving through a margin is fine), any still
+  const minRun = stills ? 1 : Math.max(1, Math.round(fps / 2)), found = [];
+  for (const [k, seen] of textHits) {
+    let best = [], run = [];
+    for (const h of seen) { run = run.length && h.n === run[run.length - 1].n + 1 ? [...run, h] : [h]; if (run.length > best.length) best = run; }
+    const kind = k.slice(0, k.indexOf('|')), what = k.slice(k.indexOf('|') + 1);
+    if (best.length >= (kind === 'lines' ? 1 : minRun)) found.push({ kind, what, at: best[0].i === best[best.length - 1].i ? `frame ${best[0].i}` : `frames ${best[0].i}-${best[best.length - 1].i}`, d: best[0].d });
+  }
+  const say = {
+    small: (f) => `"${f.what}" is ${f.d} at ${f.at}, under 36 px at 1080 wide (numbers.md, Text size on a phone); mark text that is only texture aria-hidden="true"`,
+    safe: (f) => `"${f.what}" sits inside the 5% edge margin at ${f.at}`,
+    overflow: (f) => `"${f.what}" runs past the side of its box at ${f.at}`,
+    lines: (f) => `"${f.what}" takes ${f.d}, at ${f.at}`,
+    collide: (f) => `${f.what} overlap at ${f.at}`,
+  };
+  if (!textFrames || !textMost) console.log('text: no DOM text on any checked frame (text drawn on a canvas or in WebGL is not measured)');
+  else console.log(`text: ${textFrames} frames checked, up to ${textMost} text boxes on a frame, ${found.length ? found.length + ' issue' + (found.length > 1 ? 's' : '') : 'no issues'}`);
+  for (const f of found) (f.kind === 'lines' ? (m) => failures.push(m) : (m) => console.warn('warning: ' + m))(`text: ${say[f.kind](f)}`);
+}
 if (flat) failures.push(`every frame is one flat colour (rgb ${flat.join(', ')}): nothing drew. Check that the canvas is in the page and that renderAt draws on it`);
 else if (diffs.length && diffs.every((d) => d === 0)) console.warn('warning: every frame is the same: nothing moves');
 
@@ -287,8 +372,40 @@ if (withAudio) {
     // what the limiter took off the hottest peak: where it would have been after the gain, less where it ended up
     const took = Math.max(0, before.TP + applied - after.TP);
     console.log(`audio: rendered ${before.I.toFixed(1)} LUFS, ${before.TP.toFixed(1)} dBTP -> ${after.I.toFixed(1)} LUFS, ${after.TP.toFixed(1)} dBTP (gain ${applied.toFixed(1)} dB, limiter took ${took.toFixed(1)} dB at the hottest peak, ${Math.min(pass + 1, 3)} pass${pass ? 'es' : ''})`);
-    if (took > 3) console.warn(`warning: the limiter took ${took.toFixed(1)} dB off the hottest peak, which flattens that hit: tame it in the score (sound.md, Balance)`);
+    const tame = `tame it in the score: spread its energy over a longer decay, or lower --lufs for a few hits alone (sound.md, Balance)`;
+    if (took > 6) failures.push(`audio: the limiter took ${took.toFixed(1)} dB off the hottest peak, over 6 dB, which flattens that hit: ${tame}`);
+    else if (took > 3) console.warn(`warning: the limiter took ${took.toFixed(1)} dB off the hottest peak, which flattens that hit: ${tame}`);
   }
+}
+// --- hit timing and level (--hits F,F,...): the score's parts rendered alone and measured the way sound.md defines them
+if (hits) {
+  if (!has.audio) die('--hits: the page defines no window.renderAudio()');
+  const part = async (only) => {
+    const r = await page.evaluate(async (o) => {
+      const buf = await window.renderAudio({ only: o }), ch = buf.numberOfChannels, len = buf.length, f = new Float32Array(len * ch);
+      for (let c = 0; c < ch; c++) { const d = buf.getChannelData(c); for (let i = 0; i < len; i++) f[i * ch + c] = d[i]; }
+      const bytes = new Uint8Array(f.buffer); let s = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      return { sr: buf.sampleRate, ch, b64: btoa(s) };
+    }, only);
+    const raw = Buffer.from(r.b64, 'base64'), len = raw.length / 4 / r.ch, peak = new Float32Array(len), sq = new Float32Array(len);
+    for (let i = 0; i < len; i++) for (let c = 0; c < r.ch; c++) { const v = raw.readFloatLE((i * r.ch + c) * 4); peak[i] = Math.max(peak[i], Math.abs(v)); sq[i] += v * v / r.ch; }
+    return { sr: r.sr, peak, sq };
+  };
+  const hp = await part('hits'), bp = await part('bed'), sr = hp.sr, order = [...new Set(hits)].sort((a, b) => a - b);
+  const rms = (sq, a, b) => { let s = 0; for (let i = Math.max(0, a); i < Math.min(sq.length, b); i++) s += sq[i]; return Math.sqrt(s / Math.max(1, b - a)); };
+  console.log('hits: peak = the first sample at 90% of the largest in the hit\'s first 30 ms (or up to the next hit), against (F + 1) / fps; level = RMS of its first 60 ms against the bed\'s');
+  order.forEach((F, k) => {
+    const target = (F + 1) * sr / fps, from = Math.round(F * sr / fps), next = k + 1 < order.length ? Math.round(order[k + 1] * sr / fps) : Infinity;
+    const to = Math.min(Math.round(target + 0.03 * sr), next, hp.peak.length);
+    let top = 0; for (let i = from; i < to; i++) top = Math.max(top, hp.peak[i]);
+    if (!(top > 1e-4)) { console.warn(`warning: hits: frame ${F}: nothing in renderAudio({ only: 'hits' }) between ${(from / sr).toFixed(3)} and ${(to / sr).toFixed(3)} s`); return; }
+    let p = from; while (hp.peak[p] < 0.9 * top) p++;
+    const ms = (p - target) / sr * 1000, a = Math.round(target), b = Math.round(target + 0.06 * sr), bed = rms(bp.sq, a, b);
+    const level = bed > 1e-5 ? `${(20 * Math.log10(rms(hp.sq, a, b) / bed)).toFixed(1)} dB over the bed` : 'no bed';
+    const line = `  frame ${F}: peak ${ms >= 0 ? '+' : ''}${ms.toFixed(2)} ms, ${level}`;
+    if (Math.abs(ms) > 1) console.warn(`${line}: more than 1 ms off (sound.md, Timing)`); else console.log(line);
+  });
 }
 await browser.close();
 

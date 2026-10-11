@@ -8,7 +8,7 @@ The feed plays video muted until someone taps, so the picture has to work in sil
 SOUND: synthesize everything in code with the Web Audio API, no samples, no downloads. <BPM, and a bed of kick, shaker, pad on chords ... starting on frame F; or no bed, hits alone>. Hits, each one frame after its picture: <frame: sound> ... Expose window.renderAudio(), returning the AudioBuffer of an OfflineAudioContext(2, 48000 * <seconds>, 48000) that renders the whole score; renderAudio({ only: 'hits' }) and renderAudio({ only: 'bed' }) render one part alone. Seed any noise.
 ```
 
-`render.mjs --audio` calls `window.renderAudio()` with no argument, brings the result to -14 LUFS under a -2 dBTP true-peak limiter, prints what the limiter took off the hottest peak (with a warning above 3 dB), muxes it as AAC, and measures the decoded MP4's loudness and true peak. That is all it measures: hit timing and hit level come from a script the model writes against the two parts rendered alone, as in the follow-ups below.
+`render.mjs --audio` calls `window.renderAudio()` with no argument, brings the result to the `--lufs` target (default -14) under a -2 dBTP true-peak limiter, prints what the limiter took off the hottest peak (a warning above 3 dB, a failure above 6), muxes it as AAC, and measures the decoded MP4's loudness and true peak. `render.mjs --hits 158,178` measures hit timing and level from the two parts rendered alone, as defined below.
 
 ## Timing
 
@@ -25,7 +25,7 @@ SOUND: synthesize everything in code with the Web Audio API, no samples, no down
 - Keep the energy where phone speakers play: the first mix of the source's product film put 80% of its energy under 60 Hz, and the chrome loop's mix lost 4.5 dB through a 150 Hz high-pass. Move bass and sub up an octave, open filters, and raise the pad instead.
 - Balance by removing energy: every boost is partly taken back by the limiter. When a short hit can't get 3 dB over the bed without the limiter catching it, lower the bed instead; the gain stage brings the whole mix back up to -14 LUFS. A timing fix can cause this: shortening a hit's decay takes energy out of its first 60 ms, and in the third end-to-end test pours cut from a 0.18 s to a 0.04 s decay fell to 1.6 to 2.5 dB over the bed. Measure the balance again after every timing fix.
 - A peaky score (square waves, hard transients, everything cresting on one sample) makes the limiter take a lot, and then the piece ends quieter than -14 LUFS. Tame the hottest hits in the score rather than limiting harder. Lowering one hit can make the next one the hottest; spreading a hit's energy over a longer decay lowers its peak against its loudness, and in the fourth end-to-end test a reveal's decay going from 0.3 to 0.6 s (with the click also lowered in the same round) took the limiter from about 6 dB on it to none.
-- A score of hits alone has no bed to sit over: skip the 3 to 6 dB check, and keep what the limiter takes off the hottest peak, which `render.mjs` prints, under 3 dB.
+- A score of hits alone has no bed to sit over: skip the 3 to 6 dB check, and keep what the limiter takes off the hottest peak, which `render.mjs` prints, under 3 dB. In the fifth end-to-end test, two short hits in 15 s needed 16.6 dB of gain to reach -14 LUFS and the limiter took 11.8 dB; decays lengthened from 0.03 to 0.6 s over two rounds (the click also moved from 1600 to 880 Hz) brought that to 8.0 dB of gain and 0.4 dB taken. When the hits must stay short, render at `--lufs -18` to `-20` instead.
 
 ## Loudness and the encode
 
@@ -38,7 +38,7 @@ SOUND: synthesize everything in code with the Web Audio API, no samples, no down
 Pick one or two per round:
 
 ```text
-Render the hits alone with renderAudio({ only: 'hits' }) and list, for every hit, the frame it belongs to and how many milliseconds its peak (the first sample at 90% of its largest value in its first 30 ms, or up to the next hit's onset) sits from (frame + 1) / fps. Fix any hit more than 1 ms off: if the hit before it is still sounding at its onset, shorten that hit's decay; otherwise end its attack on that sample.
+Run render.mjs with --hits and every hit's frame. It prints how many milliseconds each peak (the first sample at 90% of its largest value in its first 30 ms, or up to the next hit's onset) sits from (frame + 1) / fps, and how far the hit sits over the bed. Fix any hit more than 1 ms off: if the hit before it is still sounding at its onset, shorten that hit's decay; otherwise end its attack on that sample.
 Render the bed alone with renderAudio({ only: 'bed' }). For every hit, compare the RMS of its first 60 ms with the bed's RMS over the same 60 ms. Bring every hit to 3 to 6 dB over the bed by trimming the bed or the hit, not by boosting.
 Measure the share of energy under 60 Hz, 60 to 150 Hz and 150 Hz to 6 kHz. If most of it is under 150 Hz, move the bass up an octave and open its filter.
 render.mjs says the limiter took more than 3 dB off the hottest peak. Find that hit and the partials that crest on the same sample, then lower or re-phase them, or spread the hit over a longer decay.

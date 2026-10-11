@@ -27,7 +27,7 @@ Each points at frames, not feelings. Pick one or two per round; all of them at o
 
 ```text
 Render stills at frames 0, 24, 48, 72 and 96. Describe each in one sentence as a viewer would. Does that match the shot list? Fix what does not.
-On each text box's landing frame, measure the box with Range.getClientRects(): list its line count and any line past the box's right or bottom edge. Render the same frame with the longest copy and measure again.
+Render each text box's landing frame with --text, once with the copy and once with the longest copy (a variant URL), and fix every line it prints.
 Make a contact sheet of every 12th frame. Mark every frame where two things move at once, then fix the hierarchy.
 Onion-skin frames 24 to 47 at 25% opacity. Spacing should tighten near the keys. Adjust the easing until it does.
 Plot the hero's x position and scale per frame as a PNG chart. Show me where the motion is linear or stops dead, then fix it with the motion tokens.
@@ -82,8 +82,9 @@ A note that arrives as a feeling gets translated before it goes to the model:
 | Banding in the GIF | (look at the GIF) | Flat colours, or dither the palette. |
 | Blurry or shimmering text | (look at a still) | Snap resting text to whole pixels, and render with `--ss 2`. |
 | Jagged edges on shapes or shader text | (look at a still at full size) | Size the canvas by devicePixelRatio and render with `--ss 2`. A ray-marched shape has no anti-aliasing of its own. |
-| Text wraps to an extra line, or a longer name breaks the layout | (look at the landing frame) | Render the landing frame with the longest copy, then shorten it, widen the box or give the line its own shot. |
+| Text wraps to an extra line, or a longer name breaks the layout | `takes N lines, over its data-max-lines` (with `--text`) | Render the landing frame with the longest copy, then shorten it, widen the box or give the line its own shot. |
 | Text moves before it can be read | (look at the sheet) | Hold every text state 0.3 s per word plus 0.5 s before it moves. |
+| Half the frame stays empty after something leaves it (the headline exits and the card keeps its place below) | (look at the sheet) | Move what remains to the optical centre as the other leaves, or bring the next element into the space. |
 | Everything moves at once | (look at the sheet) | One hero move at a time; others start 150 ms later at 60% of its travel. |
 | Audio too quiet after the limiter | `more than 1 LU from -14` | Tame the hottest hits in the score, then `--audio-only`. |
 | Audio peaks over -1 dBTP decoded | `over -1 dBTP` | Lower the hits that crest together, then `--audio-only`. |
