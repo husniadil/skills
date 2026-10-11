@@ -6,6 +6,7 @@ The first render is a draft. The loop that finishes it: render stills, look at t
 
 - **Stills at named frames:** `render.mjs --frames 0,24,48,72,96` writes them and a labelled `stills.png`.
 - **A contact sheet:** every full render writes `sheet.png`, 12 frames spread over the clip. Read it like a storyboard.
+- **One frame a second, for a piece of minutes:** `ffmpeg -i piece.mp4 -vf "fps=1,scale=480:-2,tile=4x4" sheet%02d.png` puts 16 seconds in each image, so 18 images hold a 4:48 piece. Tile n starts at second 16 x (n - 1), read left to right and top to bottom. It finds what stills at chosen frames miss: in a 4:48 narrated explainer, text reading through a layer as it faded in, and a scene that opened on an empty frame for 2 s.
 - **A frozen frame in a browser:** open `piece.html?t=2.5`.
 - **An onion skin:** frames stacked at low opacity. Even spacing means robotic motion; spacing that tightens near the keys means the easing works.
 - **A speed graph:** position per frame as a chart. Straight lines are linear motion; sharp corners are dead starts and stops.
@@ -86,6 +87,7 @@ A note that arrives as a feeling gets translated before it goes to the model:
 | Text moves before it can be read | (look at the sheet) | Hold every text state 0.3 s per word plus 0.5 s before it moves. |
 | Half the frame stays empty after something leaves it (the headline exits and the card keeps its place below) | (look at the sheet) | Move what remains to the optical centre as the other leaves, or bring the next element into the space. |
 | Everything moves at once | (look at the sheet) | One hero move at a time; others start 150 ms later at 60% of its travel. |
+| Text behind an entering sheet or screen reads through it while it fades in | (look at one frame a second, or at the frames of the reveal) | Make the entering layer opaque within two frames and keep its slide or scale (numbers.md, A product action). Never cross-fade two screens that both hold text. |
 | Audio too quiet after the limiter | `more than 1 LU from -14` | Tame the hottest hits in the score, then `--audio-only`. |
 | Audio peaks over -1 dBTP decoded | `over -1 dBTP` | Lower the hits that crest together, then `--audio-only`. |
 

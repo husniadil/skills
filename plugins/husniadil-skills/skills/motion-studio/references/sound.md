@@ -20,6 +20,8 @@ SOUND: synthesize everything in code with the Web Audio API, no samples, no down
 
 ## Balance
 
+These rules are for hits over a music bed. With a narration the voice is the bed and the hits sit under it: narration.md, Sound under a voice.
+
 - Every hit, or every pair of hits on one frame, sits 3 to 6 dB over the bed: the RMS of the hit's first 60 ms against the RMS of the bed alone over the same 60 ms. The bed is everything that isn't a hit. That was the source's working target (it K-weighted both), reached in every piece by measurement.
 - Keep bed transients out of a hit's 60 ms: drop or move the kick or shaker where a hit plays, as the source did ("offbeat shaker only where no hit plays"). A kick one frame after a hit swells the bed in that window, and in the second end-to-end test it left two hits 10 to 11 dB under the bed at their intended level.
 - Keep the energy where phone speakers play: the first mix of the source's product film put 80% of its energy under 60 Hz, and the chrome loop's mix lost 4.5 dB through a 150 Hz high-pass. Move bass and sub up an octave, open filters, and raise the pad instead.

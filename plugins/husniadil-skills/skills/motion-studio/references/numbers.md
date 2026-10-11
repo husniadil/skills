@@ -112,6 +112,7 @@ A UI shot is an event the viewer can follow: the starting state, the cursor reac
 - Record the control's position from the fitted screen and aim the cursor there, not at a guess.
 - The cursor's path and resting point stay clear of every label; one that crosses text being read is a defect.
 - Sound: the click one frame after the press, the reveal one frame after the result appears (sound.md).
+- A layer that enters over readable text (a sheet over a list, a screen over a lock screen, a card over a page) is opaque within two frames: opacity `min(1, 3k)` on its eased progress `k`, while its slide or scale runs the whole reveal. A cross-fade between two screens that both hold text shows both texts at once. In a 4:48 narrated explainer (narration.md), four such fades let the text behind read through for 0.2 to 0.8 s.
 
 ## Camera (3D)
 

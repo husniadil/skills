@@ -124,6 +124,7 @@ Past `spread` pixels the stored distance stops growing, so far from a glyph it r
 - Rules to put in the prompt: animate everything from `useCurrentFrame()` with `interpolate()` and `spring()`; CSS transitions and CSS or Tailwind animations do not render correctly; use `random(seed)` from `remotion`, never `Math.random()`. `spring()` defaults to zeta 0.5, so give it `config: { damping, stiffness, mass }` from numbers.md when the move must not bounce.
 - Inside a `<Sequence from={120}>`, `useCurrentFrame()` is shifted by `from`: local frame 30 is global frame 150. Write every frame number in the brief as global and say so, so a note about frame 150 means one frame.
 - Review renders: `npx remotion still <entry-point> <composition-id> out/f60.png --frame=60` for one frame, and `npx remotion render <entry-point> <composition-id> out/cut.mp4 --frames=90-149` for the frames around a cut (an inclusive range, Remotion 4.0.502 and later).
+- Audio: its render mixes the sound as it is, with no loudness target or true-peak limit. Render the picture with `--muted` and the sound with `--codec=wav`, then master the two together (narration.md, Mastering when the engine renders the audio).
 
 ## HyperFrames (HeyGen)
 
