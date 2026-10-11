@@ -16,6 +16,15 @@ A narrated explainer runs on the voice's clock. Generate the voice before any an
 - Place a beat with a lookup, `cue(scene, phrase)`: the seconds from the scene's start to the start of that phrase's first letter. A beat on "Merah" lands when the voice says it, and a retake moves every beat with the voice.
 - Make the lookup throw when the phrase is not in the narration, so an edit to the script fails the render instead of leaving a beat on the wrong words.
 - A beat that shows something lands on the phrase that names it; an action (a cursor travel, a press) ends on it. In the product actions this followed numbers.md, A product action: the result reveals 15 frames after the press.
+- A new scene starts 0.2 to 0.4 s after the sentence before it ends, so the line lands before the picture moves on (animate's measure of narrated pieces; its pieces start each beat 0.3 s after a sentence). Keep a sentence to 3.5 words a second or fewer.
+
+## Before the voice exists
+
+When the voice will come later, time the picture to a scratch read of the script, and never ship it.
+
+- macOS reads a scene to a file: `say -v Damayanti -r 200 -o s1.aiff -f s1.txt` (Damayanti is its Indonesian voice; `say -v '?'` lists them). `-r` is not the pace in words a minute: at `-r 142`, the 4:48 explainer's real pace, three of its scenes came out 18 to 35% longer than the real takes, and at `-r 200` they came within -4% to +9% of them (12.5 to 39 s). Set it from one scene before reading the rest.
+- A scratch read has no timings. Placing a phrase by its letters (letter k of n starts at k / n of the scene's speech) missed the real word starts in the explainer's nine scenes by 0.32 s at the median and up to 1.5 s, since pauses at commas and full stops are not spread evenly: good for a rough cut, not for beats on words.
+- When the real voice arrives, retime to it (A voice that arrives after the picture). Its own timings come from the voice service (ElevenLabs' alignment, above), or, for a recording, from the transcribe-audio skill in this repository, whose JSON gives each segment, about a phrase or a sentence long, its start: cue on those, then check the beats on stills.
 
 ## A voice that arrives after the picture
 
@@ -57,6 +66,8 @@ With narration the voice is the bed, and the UI sounds sit under it, not over (s
 - Measure each sound's first 60 ms RMS against the voice's RMS while it speaks (samples above -40 dBFS) in the second around the sound, with the narration laid out on the timeline alone.
 - Delivered levels under the voice: a notification 6 to 8 dB, a confirm 9 to 13, pops 7 to 16, taps 9 to 14, whooshes 10 to 14, clicks 12 to 18, keystrokes 19 to 26. The first pass set the levels by guess and had pops up to 0.8 dB over the voice, so measure before the mix.
 - A narrated piece of minutes carries many sounds (124 in 4:48, 37 of them pops), so the frequent ones stay quiet.
+- Put the payoff hit in a pause, before the line that names it: under speech the voice masks it, and in animate's mix, which ducks the score while the voice speaks, it went down with the score. Judge the arc (sound.md, The arc) on the score without the voice, which is louder than any hit.
+- Music under a voice: in the narrated pieces animate studied it sat at -20 to -25 dB, and its notes don't say against what. Start the music about 20 dB under the voice and measure it the way the sounds above are measured. The 4:48 explainer had no music.
 - Synthesised hits peaked within 0.1 ms of their sample with cosine-phase partials (sound.md, Timing); a noise-based keystroke within 1.2 ms. A whoosh is a swell, so the 90% peak rule does not apply to it.
 
 ## Mastering when the engine renders the audio
@@ -73,4 +84,5 @@ A TTS voice is peaky: the mix came out at -20.4 LUFS with a sample peak of -2.8 
 
 - ElevenLabs API reference, `text-to-speech/convert-with-timestamps` (request fields `previous_text`, `next_text`, `seed`, `language_code`; the response's alignment), the models page and the pricing page, checked 2026-10-11. The HTTP 402 and 400 refusals, the three models' timestamps and the credit counter were seen on the API that day.
 - Remotion 4.0.534: `--muted`, `--codec=wav` and `--props`, run on this piece.
+- animate v0.4.1 by cth9191 (MIT): the scene change after a sentence, the payoff in a pause, music under a voice and the scratch voice (`SKILL.md`, Voice-over, `craft.md` and `grammar/FORMATS.md`). Read, not run; the `say` and letter-timing figures are this skill's own.
 - bang-motion v1.19.0 by Bang Tutorial (MIT): the pause detector and the retime to a later voice (`scripts/vo-pauses.html`, `references/explainer.md`), one element per phrase, every named entity on screen and the sway (`references/explainer.md`), and the change of viewpoint (`SKILL.md`). Read, not run; the measurements here are this skill's own, with ffmpeg 9.0.2.

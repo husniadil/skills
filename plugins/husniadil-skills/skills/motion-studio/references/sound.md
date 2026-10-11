@@ -29,6 +29,38 @@ These rules are for hits over a music bed. With a narration the voice is the bed
 - A peaky score (square waves, hard transients, everything cresting on one sample) makes the limiter take a lot, and then the piece ends quieter than -14 LUFS. Tame the hottest hits in the score rather than limiting harder. Lowering one hit can make the next one the hottest; spreading a hit's energy over a longer decay lowers its peak against its loudness, and in the fourth end-to-end test a reveal's decay going from 0.3 to 0.6 s (with the click also lowered in the same round) took the limiter from about 6 dB on it to none.
 - A score of hits alone has no bed to sit over: skip the 3 to 6 dB check, and keep what the limiter takes off the hottest peak, which `render.mjs` prints, under 3 dB. In the fifth end-to-end test, two short hits in 15 s needed 16.6 dB of gain to reach -14 LUFS and the limiter took 11.8 dB; decays lengthened from 0.03 to 0.6 s over two rounds (the click also moved from 1600 to 880 Hz) brought that to 8.0 dB of gain and 0.4 dB taken. When the hits must stay short, render at `--lufs -18` to `-20` instead.
 
+## The arc
+
+A piece with a turn (story.md) has one moment the sound is built around: silence before the payoff, the loudest hit on it.
+
+- Drop 15 to 35 dB for 0.5 to 4 s while the picture holds, then the single loudest hit on the turn or the reveal. `render.mjs --audio` prints where the loudest 100 ms of the mix starts, its frame, and how long it was quiet (-40 dBFS or under) in the 2 s before. On a test score with a pad, silence from 1.4 s and a hit on frame 60, it printed 2.00 s, frame 60, and 0.6 s of quiet. With a voice, judge this on the score alone: a voice is louder than any hit.
+- The busiest moment is not the loudest: the densest stretch comes just before the silence, and the turn gets the loudest hit.
+- The score grows with the story: thin early, fullest at the peak.
+- A payoff that lands: a short chord stab (about 0.4 s) and a sub on the hit, then a flat chord, with nothing busy over it. A held chord or a busy section otherwise outscores the hit.
+- A silence needs a hard stop: every event and every tail ends before it, a faint room tone at most.
+- A sustained pad sets how loud a section reads, not the plucks over it: cut the pad to quiet a section.
+
+These come from animate v0.4.1 by cth9191 (MIT, `craft.md`, Sound, and `grammar/FORMATS.md`), read and not run; the payoff print is this skill's.
+
+## A track of your own
+
+When the user brings a song, the song is the clock and the arc: cut on its beats, put the turn on a drop and the payoff on its loudest hit. Use only a song the user owns or licensed, and never fetch music from a site the user didn't point to.
+
+1. Map it: `node ${CLAUDE_SKILL_DIR}/scripts/beats.mjs song.mp3 --start 12 --seconds 30 --out beats.json` prints the tempo, the first beat, the 8 loudest hits with the beat each sits on, the loudest 100 ms and the quiet drops, all in seconds from `--start`. Pass `--bpm 128` when the user knows the tempo; it is then only refined.
+2. Read its "other tempos" line before trusting the grid. A tempo twice or half the real one still puts every cut on a beat; a tempo at 4/3 of it does not.
+3. Count bars yourself: `beats.mjs` doesn't find where a bar starts. Listen for the downbeat, or ask, and count 4 beats a bar from it.
+4. Put the beats in TIME: beat n at `firstBeat + n x beat` seconds, each rounded to a frame on its own (The beat grid in numbers.md).
+5. The score is sound effects only. `render.mjs --audio --track song.mp3 --track-start 12` mixes the song from that second under them, fades its last half second, and runs the loudness pass on the sum; `--hits` then measures each hit over the song.
+
+How far to trust it, from this skill's tests:
+
+- Synthetic tracks at 128, 90, 174 and 120 BPM: the tempo within 0.01 BPM and the first beat within 1 ms, and a drop of 4 s found. Single noise, kick and tone onsets: placed within 2 ms.
+- 276 Apple Loops drum loops on this Mac (GarageBand's content, each repeated to 32 s; the tempo from each loop's own metadata, and beat one at its start): the tempo right on 203 (74%), twice or half on 38 (14%), and wrong on 35 (13%), 22 of those at 4/3 of a slow hip hop beat. Of the 203, the grid sat on the beats in 159, a median 2 ms and at most 11 ms off for 9 in 10, and on the half beat in 29. Electro house, dubstep, chillwave, disco and breaks did best; hip hop worst (50 of 95 right, 31 more at twice or half).
+- Mixed under one hit with `--track` from 1 s in, a 128 BPM track's map of the finished mix put its first beat at 0.31 s, where it belongs (0.3075).
+- An earlier version that guessed the bar's start was right on 38 to 45% of these loops, against 25% by chance, so it was taken out.
+
+The approach (a beat map injected into the piece, the song deciding the arc, the score kept to effects, the user's own track only) comes from animate v0.4.1 by cth9191 (MIT, `SKILL.md`, Music, and `tools/beats.mjs`, read and not run). `beats.mjs` here is this skill's own code.
+
 ## Loudness and the encode
 
 - `render.mjs` aims at -14 LUFS, a common target for web video, and limits the true peak at -2 dBTP with 4x oversampling and the look-ahead delay compensated, so hits keep their place (tested: within 4 samples).

@@ -13,6 +13,25 @@ Changing it later re-directs every shot.
 
 Width and height must be even for H.264 in yuv420p.
 
+## One piece in several shapes
+
+One piece can render as 9:16, 1:1 and 16:9 when it is built for it from the start; each extra shape is a layout pass, not a new piece.
+
+- The shape is a URL parameter read once, like a language variant, and every render passes its own size: `node render.mjs 'piece.html?format=9:16' --seconds 6 --size 1080x1920` writes `out/piece-format-9-16/`.
+- Place things as fractions of the frame, and size them from one unit, the width / 1080, so text keeps its minimum in every shape (numbers.md, Text size on a phone).
+- Where a shape needs it, arrange differently: a column of three on 9:16, a row of three on 1:1 and 16:9.
+- Never crop one shape out of another: a 16:9 cut from a 9:16 render loses its sides, and its text with them.
+- Render each shape's landing frames with `--text`. In the test, a page that stacked three cards on 9:16 and set them in a row on 1:1 and 16:9 passed all three; the same row forced onto 9:16 put the caption under the platform's top bar, and a row made 10% wider than the frame put its last card's label across the edge, which `--text` reports as cut by the frame.
+
+## Under the platform's UI
+
+On a vertical feed the platform draws over the video: tabs at the top, the caption, the account and the call to action at the bottom, the like, comment and share buttons down the right side. Text there is covered.
+
+- `render.mjs --text` checks a 9:16 frame against bands of 12.5% at the top, 22% at the bottom and 13% on the right by default: animate's numbers for an organic post (top 240, bottom 420, right 140 px at 1080x1920), a little wider than third-party guides give for TikTok (top 150, bottom 350 to 400, right 120 px).
+- A Reels ad needs more room: Meta's ads guide says to keep about 14% of the top, 35% of the bottom and 6% of each side free of text and logos, for the profile icon and the call to action (Instagram Reels image ads, checked 2026-10-11). Render with `--safe 14,35,6,6`.
+- TikTok and YouTube publish their safe zones as templates and in-app guides, not as numbers (TikTok's TopView and in-feed ad specs; the YouTube Shorts editor's guides). Before an ad goes out, check the frame in the platform's own preview.
+- Other shapes have no bands by default; `--safe top,bottom,left,right` sets them, in percent of the frame.
+
 ## Loops
 
 - Render frames 0 to N-1, never N: frame N is frame 0 again, and showing it twice is the hiccup people see at the seam.

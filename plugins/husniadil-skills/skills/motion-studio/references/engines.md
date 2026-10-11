@@ -27,39 +27,43 @@ A clip is a layer like any other, and the frame it shows comes from `t`, never f
 
 - Cut each clip to the part used, without sound (the score or the voice is its own track): `ffmpeg -ss 2 -t 6 -i source.mov -vf "scale=1920:-2" -c:v libx264 -pix_fmt yuv420p -crf 20 -movflags +faststart -an clips/demo.mp4`. VP9 in WebM works too: Playwright 1.63's Chromium (153) decoded both.
 - The file sits beside the page (`clips/demo.mp4`), which `render.mjs` opens from disk; deliver the folder with the page.
-- `<video muted playsinline preload="auto">`, with no `autoplay` and no `loop`. `render.mjs` warns when a video plays on its own clock.
-- Move, scale, mask and grade the video element or a wrapper; only `syncClip` sets its time.
+- `<video muted playsinline preload="auto">` with `display: none`, no `autoplay` and no `loop`, and a `<canvas>` where the clip shows. `render.mjs` warns when a video plays on its own clock.
+- Move, scale, mask and grade the canvas or a wrapper around it; only `syncClip` sets the video's time.
 
 ```js
 const RENDER = new URLSearchParams(location.search).has('t');
-// A clip on the timeline: source time = from + (t - at) * rate. Hidden before `at`; past `to` (or the file's end) it
-// holds its last frame when `hold` is set, and hides otherwise.
+
+// A clip on the timeline, drawn into a canvas: source time = from + (t - at) * rate. Hidden before `at`; past `to` (or the
+// file's end) it holds its last frame when `hold` is set, and hides otherwise.
 const clips = [];
-const clip = (el, { at = 0, from = 0, to = Infinity, rate = 1, hold = false } = {}) => clips.push({ el, at, from, to, rate, hold });
+function clip(el, canvas, { at = 0, from = 0, to = Infinity, rate = 1, hold = false } = {}) {
+  canvas.width = canvas.clientWidth * devicePixelRatio; canvas.height = canvas.clientHeight * devicePixelRatio;   // sharp under --ss
+  clips.push({ el, canvas, ctx: canvas.getContext('2d'), at, from, to, rate, hold });
+}
 function sourceTime(c, t) {
   if (t < c.at) return null;
   // 1 ms into the frame: a seek to the exact start of a source frame can land a hair before it and show the one before
   const end = Math.min(c.to, c.el.duration), s = c.from + (t - c.at) * c.rate + 0.001;
   return s < end ? s : c.hold ? end - 0.001 : null;
 }
-// Rendering: seek, and resolve once the seek is done and two animation frames have passed, so the frame is on screen.
-// Preview: let the clip play and seek only when it drifts more than 0.2 s from the timeline.
+// The canvas shows the video's frame once the seek is done: drawn into the page, it is on the next screenshot.
+// Preview: let the video play and draw its current frame; seek only when it drifts more than 0.2 s from the timeline.
 function syncClip(c, t) {
-  const s = sourceTime(c, t), v = c.el;
-  v.style.visibility = s === null ? 'hidden' : 'visible';
+  const s = sourceTime(c, t), v = c.el, draw = () => c.ctx.drawImage(v, 0, 0, c.canvas.width, c.canvas.height);
+  c.canvas.style.visibility = s === null ? 'hidden' : 'visible';
   if (!RENDER) {
     if (s === null || (c.hold && s >= Math.min(c.to, v.duration) - 0.002)) v.pause();
     else { v.playbackRate = c.rate; if (v.paused) v.play(); }
     if (s !== null && Math.abs(v.currentTime - s) > 0.2) v.currentTime = s;
+    if (s !== null) draw();
     return;
   }
   if (s === null) return;
-  const shown = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
-  if (Math.abs(v.currentTime - s) < 1e-6 && !v.seeking) return shown();
-  return new Promise((res) => { v.addEventListener('seeked', () => shown().then(res), { once: true }); v.currentTime = s; });
+  if (Math.abs(v.currentTime - s) < 1e-6 && !v.seeking) { draw(); return; }
+  return new Promise((res) => { v.addEventListener('seeked', () => { draw(); res(); }, { once: true }); v.currentTime = s; });
 }
 
-clip(document.getElementById('demo'), { at: 4, from: 1.5, to: 6, hold: true });
+clip(document.getElementById('demo'), document.getElementById('demo-canvas'), { at: 4, from: 1.5, to: 6, hold: true });
 
 // render.mjs waits until every clip has its first frame decoded
 window.__ready = false;
@@ -72,7 +76,18 @@ window.renderAt = (t) => {
 };
 ```
 
-`render.mjs` awaits the Promise that `renderAt` returns. Tested on a page with two clips whose frames carry their own index as a bar code (H.264 at 24 fps from 1 s with a hold, VP9 at 25 fps at half speed): in eight renders of 120 frames, `--ss 2` and `--gpu` among them, every frame showed the source frame its time maps to. Without the 1 ms, every fifth frame of the 24 fps clip showed the frame before; waiting on `seeked` alone, a clip's first frame on screen came out blank or showed the wrong frame; one animation frame instead of two failed once under `--ss 2`. The wait costs about 80 ms a frame (120 frames at 640x360 in 18.6 s, against 9.2 s on `seeked` alone). In the preview the clips stayed within 0.1 s of the timeline. Under `--blur` a frame averages the source frames its sub-frames fall on, which is the clip's own motion blur.
+`render.mjs` awaits the Promise that `renderAt` returns. Tested on a page with two clips whose frames carry their own index as a bar code (H.264 at 24 fps from 1 s with a hold, VP9 at 25 fps at half speed): in 16 renders of 120 frames, 12 of them three at a time and `--ss 2` and `--gpu` among the rest, every frame showed the source frame its time maps to. Without the 1 ms, every fifth frame of the 24 fps clip showed the frame before. The `<video>` element shown on screen itself needed two animation frames after `seeked`, and even so its first frame on screen showed a stale frame once in 29 renders; drawn into a canvas, the frame is part of the page's own paint and needs no wait. 120 frames at 640x360 took 13 s that way (18.6 s with the video element and its wait), and 42 s with `--gpu`, where the video element took 18.5 s. In the preview the clips stayed within 0.15 s of the timeline. Under `--blur` a frame averages the source frames its sub-frames fall on, which is the clip's own motion blur.
+
+### The user's screenshots and logo
+
+A product piece can show the product itself. Only the user's own product, or one they may show: ask before capturing anything else.
+
+- `scripts/capture.mjs` screenshots a page, one element of it or the logo, at twice the pixel density so a crop scaled up stays sharp: `node ${CLAUDE_SKILL_DIR}/scripts/capture.mjs https://example.com assets/home.png --selector header --hide '[role="dialog"]'`. `--full` takes the whole scrolling page and `--dark` the dark scheme. Tested on the user's own site: the page, its header, and the page again with its cookie dialog hidden.
+- The images sit beside the page (`assets/home.png`), like video clips, or go in as data URIs. Decode each before the first frame: `window.__ready = false; img.decode().then(() => { window.__ready = true; });`.
+- Crop by moving the image inside a card with `overflow: hidden`, and scale it until the labels the viewer must read reach 36 px at 1080 wide: their height in the screenshot's pixels, times the scale, divided by the capture's density of 2.
+- Text inside an image is pixels: `--text` doesn't read it. DOM text over the image is measured against it for contrast: white text laid over the screenshot of a white page read 1.0:1.
+- Sample the brand's colours from the screenshots, and name them as the source in LOOK.
+- Show real screens, or rebuild them from the product's own components (numbers.md, A product action). A screen drawn from imagination is never presented as the product.
 
 ## three.js
 
@@ -194,7 +209,7 @@ Past `spread` pixels the stored distance stops growing, so far from a glyph it r
 
 ## Sources
 
-- Plain HTML: the initial state in the CSS, tabular numbers, the directional blur and its filter region, and video clips seeked from the timeline come from bang-motion v1.19.0 by Bang Tutorial (MIT, `references/techniques.md` sections 2, 9b and 10, `assets/starter-opener.html`). The clip code here is this skill's own, and the numbers are from this skill's tests.
+- Plain HTML: the initial state in the CSS, tabular numbers, the directional blur and its filter region, and video clips seeked from the timeline come from bang-motion v1.19.0 by Bang Tutorial (MIT, `references/techniques.md` sections 2, 9b and 10, `assets/starter-opener.html`). The clip code here is this skill's own, and the numbers are from this skill's tests. Capturing the user's own site and showing only real screens come from animate v0.4.1 by cth9191 (MIT, `SKILL.md`, Assets, and `tools/capture.mjs`, read and not run); `capture.mjs` here is this skill's own.
 - three.js: `mrdoob/three.js` releases and `examples/jsm/geometries/TextGeometry.js` at r160, r162, r163, r172, r173 and r186; the installation page in `manual/`.
 - GSAP: `greensock/GSAP` README, the GSAP Standard "no charge" license, npm.
 - Remotion: `remotion-dev/remotion` LICENSE.md and docs (getting started, Claude Code, `spring`, `random`, animating properties, CLI render).

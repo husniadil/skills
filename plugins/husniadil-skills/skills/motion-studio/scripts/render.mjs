@@ -15,8 +15,11 @@
 //          [--loop]             check that the motion closes: frame N matches frame 0 and the seam N-1 -> 0 is a normal step
 //          [--gif] [--gif-fps 24]
 //          [--text]             measure the DOM text on every frame: size, edge margin, overflow, line limits, overlaps,
-//                               contrast against the background under it
+//                               contrast against the background under it, and on a 9:16 frame the platform's UI bands
+//          [--safe 12.5,22,0,13] the platform UI bands for --text, top, bottom, left and right in % of the frame
 //          [--hits 158,178]     render the score's hits and bed alone and report each hit's offset and level
+//          [--track song.mp3 --track-start 12]  mix the user's song, from 12 s in, under renderAudio() (the sound
+//                               effects) before the loudness pass; --hits then measures each hit over the song
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -26,7 +29,7 @@ import { pathToFileURL } from 'node:url';
 
 const CEILING_DBTP = -2, MAX_DECODED_DBTP = -1;   // AAC adds 0.4 to 3 dB of true peak: limit at -2, then check the decoded MP4 against -1
 const X_GIF = { bytes: 15e6, mobileBytes: 5e6, frames: 350, width: 1280, height: 1080 };   // docs.x.com media best practices, help.x.com
-const USAGE = 'usage: node render.mjs <page.html[?query] | url> --seconds S [--fps 30] [--size 1080x1080] [--out dir] [--frames 0,24,48] [--blur N] [--ss N] [--gpu] [--audio | --audio-only] [--lufs -14] [--loop] [--gif] [--gif-fps 24] [--text] [--hits 158,178]';
+const USAGE = 'usage: node render.mjs <page.html[?query] | url> --seconds S [--fps 30] [--size 1080x1080] [--out dir] [--frames 0,24,48] [--blur N] [--ss N] [--gpu] [--audio | --audio-only] [--lufs -14] [--loop] [--gif] [--gif-fps 24] [--text] [--safe 12.5,22,0,13] [--hits 158,178] [--track song.mp3 --track-start 0]';
 
 const argv = process.argv.slice(2);
 const opt = (name, dflt) => { const i = argv.indexOf('--' + name); return i >= 0 ? argv[i + 1] : dflt; };
@@ -47,9 +50,13 @@ const stills = opt('frames') ? frameList(opt('frames')) : null;
 const hits = opt('hits') ? frameList(opt('hits')) : null;
 const audioOnly = flag('audio-only'), withAudio = audioOnly || flag('audio');
 const LUFS = Number(opt('lufs', '-14'));   // -14 suits a score with a bed; a few hits alone may want less (sound.md)
+const TRACK = opt('track'), trackStart = Number(opt('track-start', '0'));
 if (!(seconds > 0) || !(fps > 0) || !(W > 0) || !(H > 0)) die(USAGE, 2);
 if (!(LUFS >= -30 && LUFS <= -9)) die('--lufs takes a target between -30 and -9', 2);
 if (stills && withAudio) die('--frames renders stills only: drop --audio', 2);
+if (TRACK && !withAudio && !hits) die('--track mixes a song under renderAudio(): use it with --audio, --audio-only or --hits', 2);
+if (TRACK && !fs.existsSync(TRACK)) die(`not found: ${TRACK}`);
+if (!(trackStart >= 0)) die('--track-start takes the seconds into the song where the piece begins', 2);
 if (stills && flag('loop')) die('--frames renders stills only: --loop needs the full render', 2);
 if (W % 2 || H % 2) die(`--size ${W}x${H}: H.264 in yuv420p needs an even width and height`, 2);
 const N = Math.round(seconds * fps);
@@ -195,6 +202,10 @@ const failures = [];
 
 // --- text (--text): DOM text measured on every rendered frame; text drawn on a canvas or in WebGL is not seen here
 const textCheck = flag('text');
+// the bands a platform's UI covers (top, bottom, left, right, % of the frame): by default on a vertical 9:16 frame only,
+// animate's numbers for an organic post; a Reels ad wants Meta's 14,35,6,6 (delivery.md, Under the platform's UI)
+const UI = opt('safe') ? opt('safe').split(',').map(Number) : H / W > 1.7 ? [12.5, 22, 0, 13] : null;
+if (UI && (UI.length !== 4 || UI.some((v) => !(v >= 0 && v < 50)))) die('--safe takes four percentages under 50: top,bottom,left,right', 2);
 // one entry per visible text node: its rendered font size, its line boxes, and the block box it sits in. A line counts
 // when at least 3 of 5 points along it show the text: not clipped, not off the page, not under an opaque element.
 const measureText = () => {
@@ -218,7 +229,7 @@ const measureText = () => {
     const b = box.getBoundingClientRect(), scale = el.offsetHeight ? el.getBoundingClientRect().height / el.offsetHeight : 1;
     // the text's colour as sRGB with its alpha times the opacity above it; a colour that is not rgb() is not measured
     const cs = getComputedStyle(el), c = (el instanceof SVGElement ? cs.fill : cs.color).match(/^rgba?\(([^)]+)\)$/)?.[1].split(/[\s,/]+/).filter(Boolean).map(Number);
-    out.push({ key: text.slice(0, 48), px: parseFloat(cs.fontSize) * scale, lines, raw: raw.map((q) => [q.left, q.right]), box: [b.left, b.top, b.right, b.bottom].map(Math.round), max: Number(box.closest('[data-max-lines]')?.dataset.maxLines) || 0, fg: c ? [c[0], c[1], c[2], (c[3] ?? 1) * o] : null });
+    out.push({ key: text.slice(0, 48), px: parseFloat(cs.fontSize) * scale, lines, raw: raw.map((q) => [q.left, q.top, q.right, q.bottom]), box: [b.left, b.top, b.right, b.bottom].map(Math.round), max: Number(box.closest('[data-max-lines]')?.dataset.maxLines) || 0, fg: c ? [c[0], c[1], c[2], (c[3] ?? 1) * o] : null });
   }
   return out;
 };
@@ -263,8 +274,11 @@ function checkText(n, i, items, bg) {
     if (ratio !== null && ratio < MIN_CONTRAST) add('contrast', it.key, `${ratio.toFixed(1)}:1`);
     const inView = it.lines.every(([l, t, r, b]) => l >= 0 && t >= 0 && r <= W && b <= H);
     if (inView && it.lines.some(([l, t, r, b]) => l < mx || t < my || r > W - mx || b > H - my)) add('safe', it.key);
+    if (UI && it.lines.some(([l, t, r, b]) => t < UI[0] * H / 100 || b > H - UI[1] * H / 100 || l < UI[2] * W / 100 || r > W - UI[3] * W / 100)) add('ui', it.key);
     // overflow from every line box: text past its box is not hit-tested there, so the visible lines would miss it
-    if (it.raw.some(([l, r]) => l < it.box[0] - 2 || r > it.box[2] + 2)) add('overflow', it.key);
+    if (it.raw.some(([l, , r]) => l < it.box[0] - 2 || r > it.box[2] + 2)) add('overflow', it.key);
+    // a line the frame's edge cuts through: partly in the frame and partly out
+    if (it.raw.some(([l, t, r, b]) => r > 0 && l < W && b > 0 && t < H && (l < -1 || t < -1 || r > W + 1 || b > H + 1))) add('cut', it.key);
   }
   // lines per box with a declared limit: tops more than half a line apart start a new line
   const boxes = new Map();
@@ -285,11 +299,22 @@ function checkText(n, i, items, bg) {
 // --- frames
 const list = audioOnly ? [] : stills || Array.from({ length: N }, (_, i) => i);
 const diffs = []; let first = null, prev = null, flat = list.length > 0 ? [] : null;
+// each frame as a grid of block means (48 across), for the dead-beat scan: small enough to keep every frame's
+const GX = 48, GY = Math.max(1, Math.round(GX * H / W)), grids = [];
+function blocksOf(rgba) {
+  const sum = new Float32Array(GX * GY), count = new Uint32Array(GX * GY);
+  for (let y = 0; y < H; y++) {
+    const row = Math.floor(y * GY / H) * GX;
+    for (let x = 0; x < W; x++) { const o = (y * W + x) * 4, k = row + Math.floor(x * GX / W); sum[k] += 0.2126 * rgba[o] + 0.7152 * rgba[o + 1] + 0.0722 * rgba[o + 2]; count[k]++; }
+  }
+  for (let k = 0; k < sum.length; k++) sum[k] /= count[k];
+  return sum;
+}
 const t0 = Date.now();
 for (const [n, i] of list.entries()) {
   const { png, rgba } = await frame(i);
   fs.writeFileSync(file(i), png);
-  if (!stills) { if (prev) diffs.push(meanDiff(prev, rgba)); else first = rgba; prev = rgba; }
+  if (!stills) { if (prev) diffs.push(meanDiff(prev, rgba)); else first = rgba; prev = rgba; grids.push(blocksOf(rgba)); }
   // the first frame's one colour on every frame (a full-frame colour fade moves, so it is not flat)
   if (flat && (!isFlat(rgba) || (flat.length && !flat.every((c, j) => Math.abs(c - rgba[j]) <= 2)))) flat = null;
   else if (flat && !flat.length) flat = [rgba[0], rgba[1], rgba[2]];
@@ -302,6 +327,19 @@ for (const [n, i] of list.entries()) {
 }
 if (!audioOnly) console.log(`frames: ${list.length} in ${((Date.now() - t0) / 1000).toFixed(1)}s -> ${FRAMES}`);
 // a <video> left playing runs on its own clock, so the frame it shows depends on when the screenshot was taken
+// --- dead beats: something new every few seconds. Every quarter second, the blocks that differ by more than 8 levels
+// between half a second before and half a second after: a change that stays (a blink comes back, so it does not count).
+// Under 0.2% of the frame for 3 s or more is a stretch with nothing new on screen.
+if (!stills && !audioOnly) {
+  const lag = Math.round(fps / 2), step = Math.max(1, Math.round(fps / 4)), runs = []; let from = null;
+  for (let f = lag; f <= N - lag; f += step) {
+    const a = f + lag < N ? grids[f - lag] : null, b = a && grids[f + lag];
+    let changed = 0; if (a) for (let k = 0; k < a.length; k++) if (Math.abs(a[k] - b[k]) > 8) changed++;
+    const still = a !== null && changed < 0.002 * a.length;
+    if (still && from === null) from = f; else if (!still && from !== null) { if ((f - from) / fps >= 3) runs.push([from, f]); from = null; }
+  }
+  for (const [a, b] of runs) console.warn(`warning: nothing new on screen for ${((b - a) / fps).toFixed(1)} s, frames ${a}-${b} (${(a / fps).toFixed(2)}-${(b / fps).toFixed(2)} s): add a move, a reveal or a cut, or keep it as a hold the voice or the music carries (story.md, Pace)`);
+}
 const playing = audioOnly ? 0 : await page.evaluate(() => [...document.querySelectorAll('video')].filter((v) => !v.paused).length);
 if (playing) console.warn(`warning: ${playing} video${playing > 1 ? 's play' : ' plays'} on its own clock: pause it and seek it to its source time in renderAt (engines.md, Video clips locked to t)`);
 if (textCheck && !audioOnly) {
@@ -316,6 +354,8 @@ if (textCheck && !audioOnly) {
   const say = {
     small: (f) => `"${f.what}" is ${f.d} at ${f.at}, under 36 px at 1080 wide (numbers.md, Text size on a phone); mark text that is only texture aria-hidden="true"`,
     safe: (f) => `"${f.what}" sits inside the 5% edge margin at ${f.at}`,
+    cut: (f) => `"${f.what}" is cut by the edge of the frame at ${f.at}`,
+    ui: (f) => `"${f.what}" sits under the platform's UI at ${f.at}: keep text out of the top ${UI[0]}%, bottom ${UI[1]}%, left ${UI[2]}% and right ${UI[3]}% (delivery.md, Under the platform's UI)`,
     overflow: (f) => `"${f.what}" runs past the side of its box at ${f.at}`,
     lines: (f) => `"${f.what}" takes ${f.d}, at ${f.at}`,
     collide: (f) => `${f.what} overlap at ${f.at}`,
@@ -378,6 +418,13 @@ function loudness(f) {
   const s = e.slice(e.lastIndexOf('Summary:')), num = (re) => { const v = re.exec(s)?.[1]; return v === '-inf' ? -Infinity : Number(v); };
   return { I: num(/I:\s+(\S+) LUFS/), TP: num(/True peak:\s+Peak:\s+(\S+) dBFS/) };
 }
+// the user's song (--track) for the piece's length from --track-start, at 48 kHz stereo, faded out over its last half second
+function trackPcm(asWav) {
+  const af = `aresample=48000,aformat=channel_layouts=stereo,apad=whole_dur=${seconds},afade=t=out:st=${Math.max(0, seconds - 0.5)}:d=0.5`;
+  const r = spawnSync('ffmpeg', ['-v', 'error', '-ss', String(trackStart), '-t', String(seconds), '-i', TRACK, '-af', af, ...(asWav ? ['-c:a', 'pcm_f32le', '-f', 'wav'] : ['-f', 'f32le']), '-'], { maxBuffer: 2 ** 31 });
+  if (r.status !== 0 || !r.stdout.length) die(`ffmpeg could not decode ${TRACK}`);
+  return r.stdout;
+}
 let wav = null;
 if (withAudio) {
   const b64 = await page.evaluate(async () => {
@@ -393,6 +440,15 @@ if (withAudio) {
     return btoa(s);
   });
   const raw = path.join(OUT, 'audio-raw.wav'); fs.writeFileSync(raw, Buffer.from(b64, 'base64'));
+  if (TRACK) {
+    // the song under the sound effects, summed as they are: balance them in the score, then the loudness pass sets the level
+    const song = path.join(OUT, 'track.wav'), mixed = path.join(OUT, 'audio-mixed.wav');
+    fs.writeFileSync(song, trackPcm(true));
+    const m = spawnSync('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error', '-i', raw, '-i', song, '-filter_complex', '[0:a][1:a]amix=inputs=2:normalize=0:duration=first', '-c:a', 'pcm_f32le', mixed], { stdio: 'inherit' });
+    if (m.status !== 0) die('ffmpeg: mixing --track failed');
+    fs.renameSync(mixed, raw); fs.unlinkSync(song);
+    console.log(`audio: ${path.basename(TRACK)} from ${trackStart} s mixed under renderAudio()`);
+  }
   const before = loudness(raw);
   if (!Number.isFinite(before.I)) failures.push('audio: renderAudio() returned silence');
   else {
@@ -417,6 +473,14 @@ if (withAudio) {
     const tame = `tame it in the score: spread its energy over a longer decay, or lower --lufs for a few hits alone (sound.md, Balance)`;
     if (took > 6) failures.push(`audio: the limiter took ${took.toFixed(1)} dB off the hottest peak, over 6 dB, which flattens that hit: ${tame}`);
     else if (took > 3) console.warn(`warning: the limiter took ${took.toFixed(1)} dB off the hottest peak, which flattens that hit: ${tame}`);
+    // the payoff: the loudest 100 ms window of the mix, and the longest run of windows at -40 dBFS or under in the 2 s before it
+    const mix = spawnSync('ffmpeg', ['-v', 'error', '-i', wav, '-f', 'f32le', '-ac', '2', '-'], { maxBuffer: 2 ** 31 }).stdout;
+    const pcm = new Float32Array(Uint8Array.from(mix).buffer), win = 4800 * 2, db = [];
+    for (let w = 0; (w + 1) * win <= pcm.length; w++) { let q = 0; for (let i = w * win; i < (w + 1) * win; i++) q += pcm[i] * pcm[i]; db.push(10 * Math.log10(q / win + 1e-20)); }
+    const L = db.indexOf(Math.max(...db));
+    let run = 0, best = 0, bestEnd = L;
+    for (let w = Math.max(0, L - 20); w < L; w++) { run = db[w] <= -40 ? run + 1 : 0; if (run > best) { best = run; bestEnd = w + 1; } }
+    console.log(`payoff: the loudest 100 ms starts at ${(L / 10).toFixed(2)} s (frame ${Math.round(L / 10 * fps)}), ${db[L].toFixed(1)} dBFS; in the 2 s before it, ${(best / 10).toFixed(1)} s at -40 dBFS or under${best ? `, ending at ${(bestEnd / 10).toFixed(2)} s` : ''} (sound.md, The arc)`);
   }
 }
 // --- hit timing and level (--hits F,F,...): the score's parts rendered alone and measured the way sound.md defines them
@@ -430,11 +494,16 @@ if (hits) {
       for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
       return { sr: buf.sampleRate, ch, b64: btoa(s) };
     }, only);
-    const raw = Buffer.from(r.b64, 'base64'), len = raw.length / 4 / r.ch, peak = new Float32Array(len), sq = new Float32Array(len);
-    for (let i = 0; i < len; i++) for (let c = 0; c < r.ch; c++) { const v = raw.readFloatLE((i * r.ch + c) * 4); peak[i] = Math.max(peak[i], Math.abs(v)); sq[i] += v * v / r.ch; }
-    return { sr: r.sr, peak, sq };
+    return levels(Buffer.from(r.b64, 'base64'), r.ch, r.sr);
   };
-  const hp = await part('hits'), bp = await part('bed'), sr = hp.sr, order = [...new Set(hits)].sort((a, b) => a - b);
+  // per sample: the peak over the channels and the mean square
+  function levels(raw, ch, sr) {
+    const len = raw.length / 4 / ch, peak = new Float32Array(len), sq = new Float32Array(len);
+    for (let i = 0; i < len; i++) for (let c = 0; c < ch; c++) { const v = raw.readFloatLE((i * ch + c) * 4); peak[i] = Math.max(peak[i], Math.abs(v)); sq[i] += v * v / ch; }
+    return { sr, peak, sq };
+  }
+  // with a song under the effects, the song is the bed
+  const hp = await part('hits'), bp = TRACK ? levels(trackPcm(false), 2, 48000) : await part('bed'), sr = hp.sr, order = [...new Set(hits)].sort((a, b) => a - b);
   const rms = (sq, a, b) => { let s = 0; for (let i = Math.max(0, a); i < Math.min(sq.length, b); i++) s += sq[i]; return Math.sqrt(s / Math.max(1, b - a)); };
   console.log('hits: peak = the first sample at 90% of the largest in the hit\'s first 30 ms (or up to the next hit), against (F + 1) / fps; level = RMS of its first 60 ms against the bed\'s');
   order.forEach((F, k) => {
