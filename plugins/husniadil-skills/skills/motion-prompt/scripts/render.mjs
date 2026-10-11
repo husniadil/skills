@@ -21,7 +21,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { pathToFileURL } from 'node:url';
 
-const LUFS = -14, CEILING_DBTP = -2, MAX_DECODED_DBTP = -1;   // AAC adds up to ~1 dB of true peak: limit at -2 to deliver under -1
+const LUFS = -14, CEILING_DBTP = -2, MAX_DECODED_DBTP = -1;   // AAC adds 0.4 to 3 dB of true peak: limit at -2, then check the decoded MP4 against -1
 const X_GIF = { bytes: 15e6, mobileBytes: 5e6, frames: 350, width: 1280, height: 1080 };   // docs.x.com media best practices, help.x.com
 const USAGE = 'usage: node render.mjs <page.html | url> --seconds S [--fps 30] [--size 1080x1080] [--out dir] [--frames 0,24,48] [--blur N] [--ss N] [--gpu] [--audio | --audio-only] [--loop] [--gif] [--gif-fps 24]';
 
