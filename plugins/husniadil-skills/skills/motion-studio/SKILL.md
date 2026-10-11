@@ -1,9 +1,9 @@
 ---
-name: motion-prompt
-description: Write a directed prompt for a motion-design piece made in code, such as a product shot, a title or logo loop, a launch reel or an explainer beat, in one HTML file (CSS, Canvas or three.js) or in Remotion or HyperFrames, and render HTML pieces frame-exact to MP4 or GIF with scripts/render.mjs. Use when the user asks for an animation, motion graphics or a motion prompt, asks Claude to animate something, says "bikin animasi" or "bikin prompt animasi", or brings a vague brief ("make it premium", "make it pop") that needs numbers. Turns adjectives into easing curves, springs, frame counts, a shot list, banned defaults and a QA line, and checks renders for determinism, loop seams and loudness.
+name: motion-studio
+description: Make a motion-design piece in code, from a brief to a checked MP4 or GIF, such as a product shot, a title or logo loop, a launch clip or an explainer beat, in one HTML file (CSS, Canvas or three.js), or a prompt for Remotion or HyperFrames. Writes the directed prompt, then builds, renders and checks HTML pieces frame-exact with scripts/render.mjs. Use when the user asks for an animation, motion graphics or a motion prompt, asks Claude to animate something, says "bikin animasi" or "bikin prompt animasi", or brings a vague brief ("make it premium", "make it pop") that needs numbers. Turns adjectives into easing curves, springs, frame counts, a shot list and banned defaults, and checks renders for determinism, loop seams, text and loudness.
 ---
 
-# Motion prompts
+# Motion studio
 
 A model makes motion by writing a program that draws frames. Every frame is a function of the time `t`; a browser is frozen at each `t` and ffmpeg joins the frames. Two things follow, and this skill is built on both:
 
