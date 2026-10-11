@@ -10,6 +10,17 @@ The first render is a draft. The loop that finishes it: render stills, look at t
 - **An onion skin:** frames stacked at low opacity. Even spacing means robotic motion; spacing that tightens near the keys means the easing works.
 - **A speed graph:** position per frame as a chart. Straight lines are linear motion; sharp corners are dead starts and stops.
 
+## A reference clip
+
+A clip the user admires holds decisions: what enters first, where the eye lands, how long the result holds, what carries into the next shot. Take those, never its assets or its exact layout.
+
+1. `ffprobe` its size, frame rate and length. Get an overview with the analyzing-video skill at 2 fps, then extract consecutive frames at the source rate around each event (`ffmpeg -ss <s> -t <s> -i ref.mp4 ref/%04d.png`).
+2. Write `REFERENCE.md`: each event (entrance, landing, hold, cut) as a source frame number and timestamp; the main object's bounding box at its start and at its landing, in pixels of the source frame; direction, duration, scale and opacity change and any overshoot; the order the product, the headline and the labels appear in; how long the text stays readable.
+3. Label every value as measured, estimated from a still, or chosen. Measure positions in the extracted frames: a position read off a still by eye is approximate. For a value still in doubt, name the frames that would settle it.
+4. Convert to the piece's rate: piece frame = round(source frame / source fps x piece fps). Keep the source's frame numbers marked with its rate.
+
+The numbers then go into the template like any other: the reference sets MOTION and SHOTS, the user's own product sets LOOK.
+
 ## Follow-ups, ready to paste
 
 Each points at frames, not feelings. Pick one or two per round; all of them at once turns a fix into a rewrite.
@@ -30,6 +41,19 @@ When a fix doesn't hold, compare the frames around it:
 ```text
 The fix at frame 84 did not hold. Render frames 83 and 85, put them side by side and list every difference you can see. Find the line of code that causes it, fix only that line, then render both frames again.
 ```
+
+### A correction names four things
+
+Where (the frames), what is wrong there, the one change, and what must stay as it is. The last field keeps a fix from moving something that already works. The form and this example come from a worked launch-clip example (@beamnxw on X, 2026-10-10).
+
+```text
+At frames 204 to 210 the cursor crosses the result label.
+Change only the cursor's path after the press: leave at 204, rest by 210, at least 24 px clear of the label all the way.
+Keep the press at 195, the reveal at 210, the card, the copy and the sound cues as they are.
+Render stills at 195, 210, 222 and 240, and check every frame between them for overlap.
+```
+
+Fix in this order: missing or unreadable information, then timing, then visual detail.
 
 ## Feelings into numbers
 
@@ -57,6 +81,7 @@ A note that arrives as a feeling gets translated before it goes to the model:
 | Banding in the GIF | (look at the GIF) | Flat colours, or dither the palette. |
 | Blurry or shimmering text | (look at a still) | Snap resting text to whole pixels, and render with `--ss 2`. |
 | Jagged edges on shapes or shader text | (look at a still at full size) | Size the canvas by devicePixelRatio and render with `--ss 2`. A ray-marched shape has no anti-aliasing of its own. |
+| Text wraps to an extra line, or a longer name breaks the layout | (look at the landing frame) | Render the landing frame with the longest copy, then shorten it, widen the box or give the line its own shot. |
 | Text moves before it can be read | (look at the sheet) | Hold every text state 0.3 s per word plus 0.5 s before it moves. |
 | Everything moves at once | (look at the sheet) | One hero move at a time; others start 150 ms later at 60% of its travel. |
 | Audio too quiet after the limiter | `more than 1 LU from -14` | Tame the hottest hits in the score, then `--audio-only`. |

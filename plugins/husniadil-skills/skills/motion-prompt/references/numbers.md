@@ -88,6 +88,23 @@ When a beat isn't a whole number of frames, compute beat n at `n * 60 / BPM` sec
 - During a hold, a slow 2% push keeps the frame alive while the words stay put.
 - Push key poses 10 to 30% further than feels right: the feed shrinks everything.
 
+## A product action (UI)
+
+A UI shot is an event the viewer can follow: the starting state, the cursor reaching the control, the press, the result, and a hold long enough to read it. Starting values at 30 fps, from a worked launch-clip example (@beamnxw on X, 2026-10-10), to adjust after the first preview:
+
+| Beat | Frames |
+|---|---|
+| Cursor travels to the control | 30, on ease-in-out-cubic |
+| Press | scale 1 to 0.92 over 3 frames, back to 1 over 6 |
+| The control responds | on the press frame |
+| Cursor leaves for a resting point | starts 9 frames after the press, takes 18 |
+| The result appears | 15 frames after the press, readable 24 frames later |
+| The result holds | 0.3 s per word plus 0.5 s at least, still |
+
+- Record the control's position from the fitted screen and aim the cursor there, not at a guess.
+- The cursor's path and resting point stay clear of every label; one that crosses text being read is a defect.
+- Sound: the click one frame after the press, the reveal one frame after the result appears (sound.md).
+
 ## Camera (3D)
 
 - Field of view 30 to 50 degrees for a product; narrower (18 to 30) flattens a product or a miniature set into something graphic.

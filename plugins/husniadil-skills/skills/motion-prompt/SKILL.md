@@ -12,7 +12,7 @@ A model makes motion by writing a program that draws frames. Every frame is a fu
 
 ## Procedure
 
-1. **Read the request and infer.** Ask only what changes the result, in one AskUserQuestion call with the recommended option first: what the viewer should feel or do, where it goes (the canvas, from [references/delivery.md](references/delivery.md)), how long and whether it loops, and the engine. Unanswered, use 1080x1080, 6 s, a seamless loop, 30 fps, 120 BPM, plain HTML for 2D and three.js for 3D, and no sound, and say which defaults you picked.
+1. **Read the request and infer.** Ask only what changes the result, in one AskUserQuestion call with the recommended option first: what the viewer should feel or do, where it goes (the canvas, from [references/delivery.md](references/delivery.md)), how long and whether it loops, and the engine. Unanswered, use 1080x1080, 6 s, a seamless loop, 30 fps, 120 BPM, plain HTML for 2D and three.js for 3D, and no sound, and say which defaults you picked. When the user brings a reference clip, measure it first ([references/review.md](references/review.md), A reference clip) and write the prompt from what it decides.
 2. **Pick the engine** with [references/engines.md](references/engines.md) and put it in OUTPUT with its version and size. An engine the prompt doesn't name is the model's choice.
 3. **Fill the template** below with numbers from [references/numbers.md](references/numbers.md). Replace each adjective in the request with what it means: "premium" becomes the materials, a key, fill and rim light, ease-out-quint entrances and springs at a damping ratio of 0.8.
 4. **Write BANNED** from the list below, plus what this subject invites (a crypto brief invites neon, a product brief a spinning turntable).
@@ -39,6 +39,7 @@ For 3D add **MODEL** (sizes in one unit, primitives, bevels, what must keep its 
 - **SHOTS is where the story is.** Each shot gets a frame range, one hero move, and a handoff: a cut on the beat, a match cut where one shape becomes the next, or a mask wipe. Default to the cut. A transition is a decision.
 - **Rank everything else under the hero:** secondary moves travel 50 to 70% of the hero's distance and start 100 to 200 ms after it; ambient motion stays under 5% of the hero's travel, on a slow sine, and never stops.
 - **Name what must not change** when there is a character or a logo ("the mascot keeps its 14x10 body, 3x2 arms and 2x3 eyes"). That line keeps it recognizable.
+- **Size text for its longest copy.** Give LOOK each text box's position, width and line limit, and render the landing frame with the longest copy the piece will carry (a longer product name, a translation). Past the limit, shorten the copy, widen the box or give the line its own shot, before any motion work.
 
 ### Banned defaults
 

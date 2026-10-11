@@ -122,6 +122,8 @@ Past `spread` pixels the stored distance stops growing, so far from a glyph it r
 - Start: `npx create-video@latest`, then `npx remotion skills add` in the project to install its Agent Skills, then `npm run dev` for Remotion Studio. Render: `npx remotion render <entry-point> <composition-id> <output>`.
 - OUTPUT: `a Remotion composition, 1920x1080, 30 fps, 450 frames`.
 - Rules to put in the prompt: animate everything from `useCurrentFrame()` with `interpolate()` and `spring()`; CSS transitions and CSS or Tailwind animations do not render correctly; use `random(seed)` from `remotion`, never `Math.random()`. `spring()` defaults to zeta 0.5, so give it `config: { damping, stiffness, mass }` from numbers.md when the move must not bounce.
+- Inside a `<Sequence from={120}>`, `useCurrentFrame()` is shifted by `from`: local frame 30 is global frame 150. Write every frame number in the brief as global and say so, so a note about frame 150 means one frame.
+- Review renders: `npx remotion still <entry-point> <composition-id> out/f60.png --frame=60` for one frame, and `npx remotion render <entry-point> <composition-id> out/cut.mp4 --frames=90-149` for the frames around a cut (an inclusive range, Remotion 4.0.502 and later).
 
 ## HyperFrames (HeyGen)
 
