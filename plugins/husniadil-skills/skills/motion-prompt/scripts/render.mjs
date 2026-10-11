@@ -155,7 +155,8 @@ if (flag('gpu')) {
 }
 
 const seek = (t) => page.evaluate(async (tt) => {
-  if (typeof window.renderAt === 'function') await window.renderAt(tt);
+  // await only a real Promise: a GSAP timeline is a thenable that settles when it completes, which a paused one never does
+  if (typeof window.renderAt === 'function') { const r = window.renderAt(tt); if (r instanceof Promise) await r; }
   for (const a of document.getAnimations()) { a.pause(); a.currentTime = tt * 1000; }
 }, t);
 const shot = async (t) => { await seek(t); return page.screenshot({ type: 'png' }); };

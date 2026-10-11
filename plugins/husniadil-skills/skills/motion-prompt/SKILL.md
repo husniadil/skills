@@ -62,7 +62,7 @@ Paste this under the prompt. Each line closes one way a render goes wrong: a clo
 Render contract:
 - One self-contained HTML file. Only the libraries named above, pinned to an exact version. No other network requests.
 - Every frame is a pure function of t in seconds. Expose window.renderAt(t), which draws exactly that frame (CSS or Web Animations API animations may drive motion instead; they are paused and seeked to t).
-- With ?t= in the URL, start no requestAnimationFrame loop and no timer. Without it, play in real time for preview.
+- With ?t= in the URL, start no requestAnimationFrame loop and no timer. Without it, play in real time for preview: one requestAnimationFrame loop calls renderAt with its timestamp, in seconds since the first frame, wrapped at the length of the piece. That loop is the only clock in the file.
 - No Date.now, performance.now, setTimeout or setInterval for motion, and no unseeded Math.random: seed every random from a fixed key.
 - If anything loads or bakes asynchronously (fonts, textures, a distance-field bake), set window.__ready = false at once and true when it is done.
 - Size every canvas by window.devicePixelRatio (three.js: renderer.setPixelRatio(window.devicePixelRatio)), so a supersampled render gets more pixels.
