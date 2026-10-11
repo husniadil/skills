@@ -16,7 +16,7 @@ Facts below were checked on 2026-10-11 against each project's repository or docs
 
 - OUTPUT: `one self-contained HTML file, no libraries, 1080x1080`.
 - CSS keyframes and Web Animations API animations need no code for the renderer: `render.mjs` pauses every animation the document has and seeks it to `t`. Canvas drawing goes in `window.renderAt(t)`.
-- A web font must load before the first frame: load it with `display=block` and let `render.mjs` wait on `document.fonts.ready`, or set `window.__ready`.
+- A font ships inside the file, as a base64 data URI in `@font-face` subset to the glyphs the piece uses, since the contract allows no other network requests. A system font needs nothing, but renders differently on a machine without it. Either way it must be ready before the first frame: `render.mjs` waits on `document.fonts.ready`, which covers CSS text; Canvas text needs `await document.fonts.load('900 200px "Name"')` before the first `fillText`, behind `window.__ready`.
 
 ## three.js
 
@@ -39,13 +39,75 @@ Facts below were checked on 2026-10-11 against each project's repository or docs
 How the source's chrome title loop did it, after ten follow-ups:
 
 - One signed-distance field for everything that should merge (blob, droplets, letters), joined with a smooth minimum: k 0.35 while the blob is whole, falling to 0.1 as the droplets part.
-- Letters as distance fields, extruded as a rounded box, so a letter can merge with a droplet. The source baked the word into one 2048 x 512 signed-distance texture, then gave each glyph its own distance so the letters could form one at a time. An RGBA texture holds four glyphs, so a longer word needs an atlas with one cell per glyph (the second end-to-end test used 1792 x 256, seven 256 px cells) or a second texture. A bake that works: draw each glyph white on black with Canvas 2D `fillText`, run an exact Euclidean distance transform on the inside and the outside (two passes, on the CPU), store outside minus inside, and upload the result once before setting `window.__ready`.
+- Letters as distance fields, extruded as a rounded box, so a letter can merge with a droplet. The source baked the word into one 2048 x 512 signed-distance texture, then gave each glyph its own distance so the letters could form one at a time. An RGBA texture holds four glyphs, so a longer word needs an atlas with one cell per glyph (the second end-to-end test used 1792 x 256, seven 256 px cells) or a second texture. The bake below draws each glyph with Canvas 2D `fillText`, runs an exact Euclidean distance transform on the inside and the outside, stores outside minus inside, and is uploaded once before `window.__ready`.
 - A droplet becomes its letter by revealing the letter inside a sphere that grows from the droplet (smooth maximum, k 0.05, ease-out, 0.4 s) while the droplet shrinks into it. Mixing the two distances (`mix(sphere, letter)`) passes through flat coins.
 - New droplets grow from a negative radius (-0.4), so their pull on the blob fades in. A droplet that appears at full size pops a bump onto the blob.
 - Squash and stretch the whole field about the point where it touches the floor. Scaling the sphere centres lifts everything off the floor.
 - Melt in the reverse order of the pour: regrow the droplets, retract the letters into them, then grow the blob. A melt built from offset unions erases the letter halfway.
 - A surface ripple of 0.008 at frequency 3.2 keeps a liquid from reading as crumpled foil.
 - A ray-marched surface has no anti-aliasing of its own: size the canvas by devicePixelRatio and render with `--gpu --ss 2 --blur 4`.
+
+#### A glyph atlas bake
+
+One cell per glyph, the space left out: its width comes from `advances[' ']`. Keep `spread` pixels of margin around each glyph so linear filtering never reads the next cell. Upload `data` in three.js as `new THREE.DataTexture(data, width, height, THREE.RedFormat)` with linear filtering and `needsUpdate = true`.
+
+```js
+const INF = 1e20;
+// Felzenszwalb and Huttenlocher: exact squared distance along one line, f is 0 on the feature and INF elsewhere
+function edt1d(f, n, d, v, z) {
+  let k = 0; v[0] = 0; z[0] = -INF; z[1] = INF;
+  for (let q = 1; q < n; q++) {
+    let s;
+    while ((s = (f[q] + q * q - f[v[k]] - v[k] * v[k]) / (2 * q - 2 * v[k])) <= z[k]) k--;
+    v[++k] = q; z[k] = s; z[k + 1] = INF;
+  }
+  for (let q = 0, j = 0; q < n; q++) { while (z[j + 1] < q) j++; d[q] = (q - v[j]) ** 2 + f[v[j]]; }
+}
+function edt(g, w, h) {   // in place: g becomes the squared distance to the nearest 0
+  const n = Math.max(w, h), f = new Float64Array(n), d = new Float64Array(n), v = new Int32Array(n), z = new Float64Array(n + 1);
+  for (let x = 0; x < w; x++) { for (let y = 0; y < h; y++) f[y] = g[y * w + x]; edt1d(f, h, d, v, z); for (let y = 0; y < h; y++) g[y * w + x] = d[y]; }
+  for (let y = 0; y < h; y++) { for (let x = 0; x < w; x++) f[x] = g[y * w + x]; edt1d(f, w, d, v, z); for (let x = 0; x < w; x++) g[y * w + x] = d[x]; }
+}
+// R8 atlas, row 0 at the top: value 0.5 + d / (2 * spread), d in pixels, negative inside the glyph
+async function bakeGlyphAtlas(chars, font, cell = 256, spread = 24) {
+  await document.fonts.load(font);   // an @font-face font is not loaded until something asks for it
+  const cv = document.createElement('canvas'); cv.width = cv.height = cell;
+  const g = cv.getContext('2d', { willReadFrequently: true });
+  g.font = font; g.textAlign = 'center'; g.fillStyle = '#fff';
+  const n = chars.length, data = new Uint8Array(n * cell * cell), toIn = new Float64Array(cell * cell), toOut = new Float64Array(cell * cell);
+  const advances = { ' ': g.measureText(' ').width };
+  for (let c = 0; c < n; c++) {
+    g.clearRect(0, 0, cell, cell); g.fillText(chars[c], cell / 2, cell * 0.75);
+    advances[chars[c]] = g.measureText(chars[c]).width;
+    const a = g.getImageData(0, 0, cell, cell).data;
+    for (let i = 0; i < cell * cell; i++) { const inside = a[i * 4 + 3] > 127; toIn[i] = inside ? 0 : INF; toOut[i] = inside ? INF : 0; }
+    edt(toIn, cell, cell); edt(toOut, cell, cell);
+    for (let y = 0; y < cell; y++) for (let x = 0; x < cell; x++) {
+      const i = y * cell + x, d = Math.sqrt(toIn[i]) - Math.sqrt(toOut[i]);
+      data[y * n * cell + c * cell + x] = Math.max(0, Math.min(255, Math.round(255 * (0.5 + d / (2 * spread)))));
+    }
+  }
+  return { data, width: n * cell, height: cell, cell, spread, advances };
+}
+```
+
+In the shader, a glyph's cell spans 0 to 1 with y up. Lay the word out from the advances in cell widths, the space included: with `pen` at the glyph's left edge, its cell starts at `pen + advance / 2 - 0.5`, since `fillText` centred it, and `pen` moves on by `advance`.
+
+```glsl
+uniform sampler2D atlas;   // the R8 texture above
+uniform float CELLS, CELL, SPREAD;   // glyph count, cell and spread in pixels
+float glyph2d(vec2 p, float i) {   // in cell widths, negative inside
+  vec2 q = clamp(p, 0.0, 1.0);
+  float d = (texture(atlas, vec2((i + q.x) / CELLS, 1.0 - q.y)).r - 0.5) * 2.0 * SPREAD / CELL;
+  return d + length(p - q);   // outside the cell, add the distance to it
+}
+float glyph3d(vec3 p, float i, float depth, float r) {   // extruded, edges rounded by r
+  vec2 w = vec2(glyph2d(p.xy, i) + r, abs(p.z) - 0.5 * depth + r);
+  return min(max(w.x, w.y), 0.0) + length(max(w, 0.0)) - r;
+}
+```
+
+Past `spread` pixels the stored distance stops growing, so far from a glyph it reads short: a ray march stays safe and takes more steps there.
 
 ## GSAP in a plain HTML piece
 

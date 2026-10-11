@@ -112,6 +112,8 @@ function encodePNG(rgba, w, h) {
 }
 // mean absolute difference over R, G and B, in 0-255 sRGB steps
 function meanDiff(a, b) { let s = 0; for (let i = 0; i < a.length; i += 4) s += Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]); return s / (a.length / 4 * 3); }
+// every pixel within 2 steps of the first one: a frame that shows only the page background
+function isFlat(a) { for (let i = 4; i < a.length; i += 4) if (Math.abs(a[i] - a[0]) > 2 || Math.abs(a[i + 1] - a[1]) > 2 || Math.abs(a[i + 2] - a[2]) > 2) return false; return true; }
 const S2L = new Float32Array(256).map((_, i) => { const c = i / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
 const L2S = (l) => { const c = l <= 0.0031308 ? l * 12.92 : 1.055 * l ** (1 / 2.4) - 0.055; return Math.max(0, Math.min(255, Math.round(c * 255))); };
 
@@ -181,15 +183,20 @@ const failures = [];
 
 // --- frames
 const list = audioOnly ? [] : stills || Array.from({ length: N }, (_, i) => i);
-const diffs = []; let first = null, prev = null;
+const diffs = []; let first = null, prev = null, flat = list.length > 0 ? [] : null;
 const t0 = Date.now();
 for (const [n, i] of list.entries()) {
   const { png, rgba } = await frame(i);
   fs.writeFileSync(file(i), png);
   if (!stills) { if (prev) diffs.push(meanDiff(prev, rgba)); else first = rgba; prev = rgba; }
+  // the first frame's one colour on every frame (a full-frame colour fade moves, so it is not flat)
+  if (flat && (!isFlat(rgba) || (flat.length && !flat.every((c, j) => Math.abs(c - rgba[j]) <= 2)))) flat = null;
+  else if (flat && !flat.length) flat = [rgba[0], rgba[1], rgba[2]];
   if ((n + 1) % Math.max(1, Math.round(list.length / 10)) === 0) console.error(`  ${n + 1}/${list.length} frames`);
 }
 if (!audioOnly) console.log(`frames: ${list.length} in ${((Date.now() - t0) / 1000).toFixed(1)}s -> ${FRAMES}`);
+if (flat) failures.push(`every frame is one flat colour (rgb ${flat.join(', ')}): nothing drew. Check that the canvas is in the page and that renderAt draws on it`);
+else if (diffs.length && diffs.every((d) => d === 0)) console.warn('warning: every frame is the same: nothing moves');
 
 // --- determinism: the same t, captured again after another frame, must draw the same pixels
 if (!audioOnly) {

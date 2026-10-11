@@ -47,8 +47,9 @@ A note that arrives as a feeling gets translated before it goes to the model:
 
 | Symptom | What `render.mjs` says | Fix to send |
 |---|---|---|
+| A blank render | `every frame is one flat colour` | Attach the canvas to the page (`document.body.append(canvas)`) and draw on that canvas in renderAt. |
 | Flicker or jitter | `not deterministic` | Make every value a pure function of t. Replace Math.random with a seeded generator. Remove timers and CSS transitions. |
-| Wrong or fallback font | (look at frame 0) | Load the font with display=block and wait for document.fonts.ready before the first frame. |
+| Wrong or fallback font | (look at frame 0) | Embed the font as a base64 data URI in @font-face and wait for it before the first frame: document.fonts.ready for CSS text, document.fonts.load for Canvas text. |
 | A hiccup at the loop seam | `one frame is held at the seam` or `does not match frame 0` | Drive the loop from phase = frame / N with whole cycles. Frame N must equal frame 0, and frame N - 1 must not. |
 | A jump at the seam | `the seam jumps` | Make every motion periodic over the loop: sample noise along a circle, end the last move where the first begins. |
 | Audio drifts off the beat | (measure the hits) | Compute each beat as n x 60 / BPM and round per beat. Never add a rounded frame count. |
@@ -63,7 +64,7 @@ A note that arrives as a feeling gets translated before it goes to the model:
 
 ### 3D
 
-From the source's follow-ups and this skill's end-to-end test. engines.md, Liquid that becomes a shape, has the technique behind each fix.
+From the source's follow-ups and this skill's end-to-end tests. engines.md, Liquid that becomes a shape, has the technique behind each fix.
 
 | Symptom | Fix to send |
 |---|---|
@@ -77,6 +78,7 @@ From the source's follow-ups and this skill's end-to-end test. engines.md, Liqui
 | Squash lifts things off the floor | Scale the whole field about the floor contact point. |
 | A melt erases the letter halfway | Regrow the droplets first, then retract the letters into them. |
 | Parts leave the frame at the widest moment | Render a still at that frame, then pull the camera back or shorten the arc. |
+| One object hides another (the blob covers letters of the word) | Render stills on every frame where both are on screen, then separate them in depth or height, or move one beat so they don't share the screen. |
 | The hero reads as a speck, or the floor fills half the frame | Push the camera in or scale the hero until it spans a quarter of the frame width on frame 0, and lower the horizon line. |
 
 When a fix works, add its line to the render contract. The contract is the lab's memory: every line is a failure that won't come back.

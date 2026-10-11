@@ -13,9 +13,10 @@ SOUND: synthesize everything in code with the Web Audio API, no samples, no down
 ## Timing
 
 - **A hit lands one frame after its picture.** Light reaches us before sound, so a sound that arrives a little late reads as right and one that arrives early reads as wrong. A hit on frame F peaks at `(F + 1) / fps` seconds.
-- At 48 kHz a frame is 1600 samples at 30 fps and 800 at 60 fps, so a hit on frame F peaks on sample `(F + 1) * 48000 / fps`. Its peak is the first sample that reaches 90% of its largest value in its first 30 ms, or up to the next hit's onset when that comes sooner, so a neighbour's tail can't move it.
+- At 48 kHz a frame is 1600 samples at 30 fps and 800 at 60 fps, so a hit on frame F peaks on sample `(F + 1) * 48000 / fps`. Its peak is the first sample that reaches 90% of its largest value in its first 30 ms, or up to the next hit's onset when that comes sooner, so the next hit can't move it. The previous hit's tail still can: if it is still sounding at this onset, it adds to this hit's first samples and moves the 90% sample. In the third end-to-end test, pour ticks 133 ms apart with a 0.18 s decay peaked 2 to 17 ms late until the decay was cut to 0.04 s.
 - Put the bed on the same beat grid as the cuts (numbers.md), computed per beat from time.
 - End the attack on the frame: start the envelope 0.5 to 1 ms before `(F + 1) / fps`, and start the oscillator so that sample is a crest (a sine reaches its crest a quarter period after it starts). Measured this way, an 880 Hz hit with a 0.75 ms attack peaked 0.04 ms early; the same hit with its attack starting on the frame peaked 0.77 ms late. A hit with several partials needs every partial at a crest on that sample (the source kept "every gloop harmonic in cosine phase"), or the sum peaks later. Sines that start at phase 0 and waveshapers pushed the peaks 2.5 to 11 ms late in the source's measurements.
+- A low partial gives a broad crest, and then the 90% sample can come before the crest even when the crest is on its sample: a pure sine passes 90% of its crest 0.45 rad early, 0.55 ms at 130 Hz against 0.08 ms at 880 Hz. In the third end-to-end test a 130 Hz hit and a 330 Hz hit with a 165 Hz partial read 0.8 ms early with every crest placed, while a 262 Hz hit read on time. Before moving a low hit that reads up to 1 ms early, find the sample its crest is on.
 
 ## Balance
 
@@ -36,7 +37,7 @@ SOUND: synthesize everything in code with the Web Audio API, no samples, no down
 Pick one or two per round:
 
 ```text
-Render the hits alone with renderAudio({ only: 'hits' }) and list, for every hit, the frame it belongs to and how many milliseconds its peak (the first sample at 90% of its largest value in its first 30 ms, or up to the next hit's onset) sits from (frame + 1) / fps. Fix any hit more than 1 ms off by ending its attack on that sample.
+Render the hits alone with renderAudio({ only: 'hits' }) and list, for every hit, the frame it belongs to and how many milliseconds its peak (the first sample at 90% of its largest value in its first 30 ms, or up to the next hit's onset) sits from (frame + 1) / fps. Fix any hit more than 1 ms off: if the hit before it is still sounding at its onset, shorten that hit's decay; otherwise end its attack on that sample.
 Render the bed alone with renderAudio({ only: 'bed' }). For every hit, compare the RMS of its first 60 ms with the bed's RMS over the same 60 ms. Bring every hit to 3 to 6 dB over the bed by trimming the bed or the hit, not by boosting.
 Measure the share of energy under 60 Hz, 60 to 150 Hz and 150 Hz to 6 kHz. If most of it is under 150 Hz, move the bass up an octave and open its filter.
 The limiter took more than 3 dB on the hottest hit. Find which partials crest on the same sample and lower or re-phase them.

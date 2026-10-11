@@ -91,7 +91,7 @@ When a beat isn't a whole number of frames, compute beat n at `n * 60 / BPM` sec
 ## Camera (3D)
 
 - Field of view 30 to 50 degrees for a product; narrower (18 to 30) flattens a product or a miniature set into something graphic.
-- Frame the hero, not the set: on frame 0 and in every hold the hero spans at least a quarter of the frame width (270 px at 1080). In the two end-to-end tests, a blob at 30% of the width read well; one at 13% read as a speck above an empty floor.
+- Frame the hero, not the set: on frame 0 and in every hold the hero spans at least a quarter of the frame width (270 px at 1080). In the end-to-end tests, blobs at about 26% and 30% of the width read well; one at 13% read as a speck above an empty floor.
 - The camera never parks: a slow orbit or a creep in every hold.
 - Parallax speeds to start from: 1.0 foreground, 0.5 middle, 0.2 background.
 
