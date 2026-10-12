@@ -270,6 +270,21 @@ function contrastUnder(it, bg) {
   }
   return ratios.length ? Float32Array.from(ratios).sort()[Math.floor(ratios.length * 0.1)] : null;
 }
+// a shape reaching into text on a plain ground: the share of background pixels under the glyphs' ink (2 px in from every
+// side, so a shape that only abuts the box, such as a caret after the last letter, stays out) far from the ground's median
+// colour, and whether any touch the box's edge. A shape coming in from outside is a small share on the edge; a speck
+// inside, or text over its own shadow (a larger share), is not one
+function shapeUnder(it, bg) {
+  const bw = W * SS, px = [];
+  for (const [l, t, rt, bt] of it.ink) {
+    const y0 = Math.max(0, Math.ceil((t + 2) * SS)), y1 = Math.min(H * SS, Math.floor((bt - 2) * SS)), x0 = Math.max(0, Math.ceil((l + 2) * SS)), x1 = Math.min(bw, Math.floor((rt - 2) * SS));
+    for (let y = y0; y < y1; y += 2 * SS) for (let x = x0; x < x1; x += 2 * SS) { const o = (y * bw + x) * 4; px.push([bg[o], bg[o + 1], bg[o + 2], y - y0 < 2 * SS || y1 - y <= 2 * SS || x - x0 < 2 * SS || x1 - x <= 2 * SS]); }
+  }
+  if (!px.length) return null;
+  const med = [0, 1, 2].map((c) => px.map((q) => q[c]).sort((a, b) => a - b)[px.length >> 1]);
+  const far = px.filter((q) => Math.hypot(q[0] - med[0], q[1] - med[1], q[2] - med[2]) > 48);
+  return { share: far.length / px.length, edge: far.some((q) => q[3]) };
+}
 const textHits = new Map();   // "kind|what" -> [{ n: position in the frame list, i: frame, d: detail }]
 let textFrames = 0, textMost = 0;
 function checkText(n, i, items, bg) {
@@ -282,6 +297,9 @@ function checkText(n, i, items, bg) {
     // the opacity is part of the ratio: a fade-in's first frames read lower than the text will
     // two decimals where one would round up to the bound, so 4.46 never reads as 4.5 "under 4.5:1"
     if (ratio !== null && ratio < MIN_CONTRAST) add('contrast', it.key, `${ratio.toFixed(Number(ratio.toFixed(1)) >= MIN_CONTRAST ? 2 : 1)}:1${it.fg[3] < 0.995 ? ` at ${Math.round(it.fg[3] * 100)}% opacity` : ''}`);
+    // a shape under text that already fails contrast is that warning's to fix: text over a busy picture reads as both
+    const under = bg && !(ratio !== null && ratio < MIN_CONTRAST) ? shapeUnder(it, bg) : null;
+    if (under && under.edge && under.share <= 0.1) add('shape', it.key, `${(under.share * 100).toFixed(1)}%`);
     // margins, UI bands and the frame's edge are measured on the ink
     const inView = it.ink.every(([l, t, r, b]) => l >= 0 && t >= 0 && r <= W && b <= H);
     if (inView && it.ink.some(([l, t, r, b]) => l < mx || t < my || r > W - mx || b > H - my)) add('safe', it.key);
@@ -355,12 +373,13 @@ const playing = audioOnly ? 0 : await page.evaluate(() => [...document.querySele
 if (playing) console.warn(`warning: ${playing} video${playing > 1 ? 's play' : ' plays'} on its own clock: pause it and seek it to its source time in renderAt (engines.md, Video clips locked to t)`);
 if (textCheck && !audioOnly) {
   // report what lasts: half a second in a full render (text moving through a margin is fine), any still
-  const minRun = stills ? 1 : Math.max(1, Math.round(fps / 2)), found = [];
+  // a shape reaching into text counts from a sixth of a second: the ninth end-to-end test's three ran 10 to 14 frames
+  const minRun = stills ? 1 : Math.max(1, Math.round(fps / 2)), shapeRun = stills ? 1 : Math.max(1, Math.round(fps / 6)), found = [];
   for (const [k, seen] of textHits) {
     let best = [], run = [];
     for (const h of seen) { run = run.length && h.n === run[run.length - 1].n + 1 ? [...run, h] : [h]; if (run.length > best.length) best = run; }
     const kind = k.slice(0, k.indexOf('|')), what = k.slice(k.indexOf('|') + 1);
-    if (best.length >= (kind === 'lines' ? 1 : minRun)) found.push({ kind, what, at: best[0].i === best[best.length - 1].i ? `frame ${best[0].i}` : `frames ${best[0].i}-${best[best.length - 1].i}`, d: best[0].d });
+    if (best.length >= (kind === 'lines' ? 1 : kind === 'shape' ? shapeRun : minRun)) found.push({ kind, what, at: best[0].i === best[best.length - 1].i ? `frame ${best[0].i}` : `frames ${best[0].i}-${best[best.length - 1].i}`, d: best[0].d });
   }
   const say = {
     small: (f) => `"${f.what}" is ${f.d} at ${f.at}, under 36 px at 1080 wide (numbers.md, Text size on a phone); mark text that is only texture aria-hidden="true"`,
@@ -370,6 +389,7 @@ if (textCheck && !audioOnly) {
     overflow: (f) => `"${f.what}" runs past the side of its box at ${f.at}`,
     lines: (f) => `"${f.what}" takes ${f.d}, at ${f.at}`,
     collide: (f) => `${f.what} overlap at ${f.at}`,
+    shape: (f) => `a shape reaches into "${f.what}" at ${f.at}, under ${f.d} of its letters: move them apart, unless the shape belongs with the text (numbers.md, Contrast behind text)`,
     contrast: (f) => `"${f.what}" reaches ${f.d} against 90% of the background under it at ${f.at}, under ${MIN_CONTRAST}:1 (numbers.md, Contrast behind text)`,
   };
   if (!textFrames || !textMost) console.log('text: no DOM text on any checked frame (text drawn on a canvas or in WebGL is not measured)');
