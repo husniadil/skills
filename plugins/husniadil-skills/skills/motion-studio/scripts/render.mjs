@@ -253,13 +253,13 @@ async function backgroundShot() {
   await page.evaluate(hideText, false);
   return decodePNG(png);
 }
-// WCAG contrast of the text's colour against each background pixel under its lines (sampled every 2 px), and the ratio
-// that 90% of those pixels reach: a few bright specks pass, a background half as light as the text does not
+// WCAG contrast of the text's colour against each background pixel under its glyphs' ink (sampled every 2 px), and the
+// ratio that 90% of those pixels reach: a few bright specks pass, a background half as light as the text does not
 const MIN_CONTRAST = 4.5;
 const luminance = (r, g, b) => 0.2126 * S2L[r] + 0.7152 * S2L[g] + 0.0722 * S2L[b];
 function contrastUnder(it, bg) {
   const [r, g, b, a] = it.fg, bw = W * SS, ratios = [];
-  for (const [l, t, rt, bt] of it.lines) {
+  for (const [l, t, rt, bt] of it.ink) {
     for (let y = Math.max(0, Math.floor(t * SS)); y < Math.min(H * SS, Math.ceil(bt * SS)); y += 2 * SS) {
       for (let x = Math.max(0, Math.floor(l * SS)); x < Math.min(bw, Math.ceil(rt * SS)); x += 2 * SS) {
         const o = (y * bw + x) * 4, br = bg[o], bgr = bg[o + 1], bb = bg[o + 2];
