@@ -280,7 +280,8 @@ function checkText(n, i, items, bg) {
     if (it.px < minPx - 0.5) add('small', it.key, `${Math.round(it.px)} px`);
     const ratio = bg && it.fg ? contrastUnder(it, bg) : null;
     // the opacity is part of the ratio: a fade-in's first frames read lower than the text will
-    if (ratio !== null && ratio < MIN_CONTRAST) add('contrast', it.key, `${ratio.toFixed(1)}:1${it.fg[3] < 0.995 ? ` at ${Math.round(it.fg[3] * 100)}% opacity` : ''}`);
+    // two decimals where one would round up to the bound, so 4.46 never reads as 4.5 "under 4.5:1"
+    if (ratio !== null && ratio < MIN_CONTRAST) add('contrast', it.key, `${ratio.toFixed(Number(ratio.toFixed(1)) >= MIN_CONTRAST ? 2 : 1)}:1${it.fg[3] < 0.995 ? ` at ${Math.round(it.fg[3] * 100)}% opacity` : ''}`);
     // margins, UI bands and the frame's edge are measured on the ink
     const inView = it.ink.every(([l, t, r, b]) => l >= 0 && t >= 0 && r <= W && b <= H);
     if (inView && it.ink.some(([l, t, r, b]) => l < mx || t < my || r > W - mx || b > H - my)) add('safe', it.key);
@@ -480,16 +481,29 @@ if (withAudio) {
     // what the limiter took off the hottest peak: where it would have been after the gain, less where it ended up
     const took = Math.max(0, before.TP + applied - after.TP);
     console.log(`audio: rendered ${before.I.toFixed(1)} LUFS, ${before.TP.toFixed(1)} dBTP -> ${after.I.toFixed(1)} LUFS, ${after.TP.toFixed(1)} dBTP (gain ${applied.toFixed(1)} dB in the last pass, limiter took ${took.toFixed(1)} dB at the hottest peak, ${Math.min(pass + 1, 3)} pass${pass ? 'es' : ''})`);
-    const tame = `tame it in the score: spread its energy over a longer decay, or lower --lufs for a few hits alone (sound.md, Balance)`;
-    // which hit that is: the score's loudest sample, read as the hit that peaks there ((F + 1) / fps, sound.md, Timing)
+    const tame = `tame it in the score: give a hit a longer decay, then bring it back to 3 to 6 dB over the bed with --hits; lower a hit over 6 dB; when the places are beats, lower the kick or shaker under them; or lower --lufs for a few hits alone (sound.md, Balance)`;
+    // which hit that is: the score's loudest sample, read as the hit that peaks there ((F + 1) / fps, sound.md, Timing);
+    // and how many other places the gain puts over 3 dB past the ceiling (sample peaks, 50 ms apart), so one hot hit
+    // reads apart from a bed whose every beat is limited
     const hottest = () => {
       const x = new Float32Array(Uint8Array.from(spawnSync('ffmpeg', ['-v', 'error', '-i', raw, '-f', 'f32le', '-ac', '2', '-ar', '48000', '-'], { maxBuffer: 2 ** 31 }).stdout).buffer);
       let m = 0, k = 0; for (let i = 0; i < x.length; i++) { const v = Math.abs(x[i]); if (v > m) { m = v; k = i; } }
-      const s = Math.floor(k / 2) / 48000, f = Math.max(0, Math.round(s * fps) - 1);
-      return TRACK ? `the peak at ${s.toFixed(3)} s (a hit on frame ${f}, or the song)` : `the hit on frame ${f} (its peak at ${s.toFixed(3)} s)`;
+      const frame = (s) => Math.max(0, Math.round(s * fps) - 1), s = Math.floor(k / 2) / 48000, f = frame(s);
+      const places = []; let cur = null;
+      for (let i = 0; i < x.length; i += 2) {
+        const at = i / 2 / 48000, over = 20 * Math.log10(Math.max(Math.abs(x[i]), Math.abs(x[i + 1])) + 1e-12) + applied - CEILING_DBTP;
+        if (over <= 3) continue;
+        if (cur && at - cur.end < 0.05) { cur.end = at; if (over > cur.over) { cur.over = over; cur.at = at; } } else places.push(cur = { at, end: at, over });
+      }
+      const more = places.filter((q) => Math.abs(q.at - s) >= 0.05).sort((a, b) => b.over - a.over).map((q) => frame(q.at));
+      const also = more.length ? `, and over 3 dB at ${more.length} more place${more.length > 1 ? 's' : ''} (frame${more.length > 1 ? 's' : ''} ${more.slice(0, 6).join(', ')}${more.length > 6 ? ', ...' : ''})` : '';
+      return (TRACK ? `the peak at ${s.toFixed(3)} s (a hit on frame ${f}, or the song)` : `the hit on frame ${f} (its peak at ${s.toFixed(3)} s)`) + also;
     };
-    if (took > 6) failures.push(`audio: the limiter took ${took.toFixed(1)} dB off the hottest peak, over 6 dB, which flattens ${hottest()}: ${tame}`);
-    else if (took > 3) console.warn(`warning: the limiter took ${took.toFixed(1)} dB off the hottest peak, which flattens ${hottest()}: ${tame}`);
+    // why it took that much: the limiter takes at least what the score's peak sits over its loudness past the room the
+    // target leaves under the ceiling, more when limiting costs loudness and the next pass's gain makes it up
+    const room = `the score's peak sits ${(before.TP - before.I).toFixed(1)} dB over its loudness, where ${LUFS} LUFS under the ${CEILING_DBTP} dBTP ceiling leaves ${CEILING_DBTP - LUFS}`;
+    if (took > 6) failures.push(`audio: the limiter took ${took.toFixed(1)} dB off the hottest peak, over 6 dB, which flattens ${hottest()}; ${room}: ${tame}`);
+    else if (took > 3) console.warn(`warning: the limiter took ${took.toFixed(1)} dB off the hottest peak, which flattens ${hottest()}; ${room}: ${tame}`);
     // the payoff: the loudest 100 ms window of the mix, and the longest run of windows at -40 dBFS or under in the 2 s before it
     const mix = spawnSync('ffmpeg', ['-v', 'error', '-i', wav, '-f', 'f32le', '-ac', '2', '-'], { maxBuffer: 2 ** 31 }).stdout;
     const pcm = new Float32Array(Uint8Array.from(mix).buffer), win = 4800 * 2, db = [];
