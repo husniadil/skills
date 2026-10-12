@@ -229,13 +229,15 @@ const measureText = () => {
     const b = box.getBoundingClientRect(), scale = el.offsetHeight ? el.getBoundingClientRect().height / el.offsetHeight : 1;
     // the text's colour as sRGB with its alpha times the opacity above it; a colour that is not rgb() is not measured
     const cs = getComputedStyle(el), c = (el instanceof SVGElement ? cs.fill : cs.color).match(/^rgba?\(([^)]+)\)$/)?.[1].split(/[\s,/]+/).filter(Boolean).map(Number);
-    // the glyphs' ink, top to bottom, on each line: a line's box is the font's full ascent plus descent, which can reach
-    // past its line-height, so two blocks set close can overlap there while no glyph touches
+    // the glyphs' ink, top to bottom, on each line: a line's box is the font's full ascent plus descent, which reaches
+    // past the glyphs and can reach past its line-height, so a box can overlap another, a margin or the frame's edge
+    // while no glyph does
     const ctx = (window.__renderMjsInk ??= document.createElement('canvas').getContext('2d'));
     ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
     const m = ctx.measureText(text), fh = m.fontBoundingBoxAscent + m.fontBoundingBoxDescent;
-    const ink = lines.map(([l, t, r, bt]) => { const k = (bt - t) / fh; return [l, t + (m.fontBoundingBoxAscent - m.actualBoundingBoxAscent) * k, r, t + (m.fontBoundingBoxAscent + m.actualBoundingBoxDescent) * k]; });
-    out.push({ key: text.slice(0, 48), px: parseFloat(cs.fontSize) * scale, lines, ink, raw: raw.map((q) => [q.left, q.top, q.right, q.bottom]), box: [b.left, b.top, b.right, b.bottom].map(Math.round), max: Number(box.closest('[data-max-lines]')?.dataset.maxLines) || 0, fg: c ? [c[0], c[1], c[2], (c[3] ?? 1) * o] : null });
+    const inkOf = ([l, t, r, bt]) => { const k = (bt - t) / fh; return [l, t + (m.fontBoundingBoxAscent - m.actualBoundingBoxAscent) * k, r, t + (m.fontBoundingBoxAscent + m.actualBoundingBoxDescent) * k]; };
+    const rawBoxes = raw.map((q) => [q.left, q.top, q.right, q.bottom]);
+    out.push({ key: text.slice(0, 48), px: parseFloat(cs.fontSize) * scale, lines, ink: lines.map(inkOf), raw: rawBoxes, rawInk: rawBoxes.map(inkOf), box: [b.left, b.top, b.right, b.bottom].map(Math.round), max: Number(box.closest('[data-max-lines]')?.dataset.maxLines) || 0, fg: c ? [c[0], c[1], c[2], (c[3] ?? 1) * o] : null });
   }
   return out;
 };
@@ -278,13 +280,14 @@ function checkText(n, i, items, bg) {
     if (it.px < minPx - 0.5) add('small', it.key, `${Math.round(it.px)} px`);
     const ratio = bg && it.fg ? contrastUnder(it, bg) : null;
     if (ratio !== null && ratio < MIN_CONTRAST) add('contrast', it.key, `${ratio.toFixed(1)}:1`);
-    const inView = it.lines.every(([l, t, r, b]) => l >= 0 && t >= 0 && r <= W && b <= H);
-    if (inView && it.lines.some(([l, t, r, b]) => l < mx || t < my || r > W - mx || b > H - my)) add('safe', it.key);
-    if (UI && it.lines.some(([l, t, r, b]) => t < UI[0] * H / 100 || b > H - UI[1] * H / 100 || l < UI[2] * W / 100 || r > W - UI[3] * W / 100)) add('ui', it.key);
+    // margins, UI bands and the frame's edge are measured on the ink
+    const inView = it.ink.every(([l, t, r, b]) => l >= 0 && t >= 0 && r <= W && b <= H);
+    if (inView && it.ink.some(([l, t, r, b]) => l < mx || t < my || r > W - mx || b > H - my)) add('safe', it.key);
+    if (UI && it.ink.some(([l, t, r, b]) => t < UI[0] * H / 100 || b > H - UI[1] * H / 100 || l < UI[2] * W / 100 || r > W - UI[3] * W / 100)) add('ui', it.key);
     // overflow from every line box: text past its box is not hit-tested there, so the visible lines would miss it
     if (it.raw.some(([l, , r]) => l < it.box[0] - 2 || r > it.box[2] + 2)) add('overflow', it.key);
     // a line the frame's edge cuts through: partly in the frame and partly out
-    if (it.raw.some(([l, t, r, b]) => r > 0 && l < W && b > 0 && t < H && (l < -1 || t < -1 || r > W + 1 || b > H + 1))) add('cut', it.key);
+    if (it.rawInk.some(([l, t, r, b]) => r > 0 && l < W && b > 0 && t < H && (l < -1 || t < -1 || r > W + 1 || b > H + 1))) add('cut', it.key);
   }
   // lines per box with a declared limit: tops more than half a line apart start a new line
   const boxes = new Map();
