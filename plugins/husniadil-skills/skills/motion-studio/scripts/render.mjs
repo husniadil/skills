@@ -237,7 +237,9 @@ const measureText = () => {
     const m = ctx.measureText(text), fh = m.fontBoundingBoxAscent + m.fontBoundingBoxDescent;
     const inkOf = ([l, t, r, bt]) => { const k = (bt - t) / fh; return [l, t + (m.fontBoundingBoxAscent - m.actualBoundingBoxAscent) * k, r, t + (m.fontBoundingBoxAscent + m.actualBoundingBoxDescent) * k]; };
     const rawBoxes = raw.map((q) => [q.left, q.top, q.right, q.bottom]);
-    out.push({ key: text.slice(0, 48), px: parseFloat(cs.fontSize) * scale, lines, ink: lines.map(inkOf), raw: rawBoxes, rawInk: rawBoxes.map(inkOf), box: [b.left, b.top, b.right, b.bottom].map(Math.round), max: Number(box.closest('[data-max-lines]')?.dataset.maxLines) || 0, fg: c ? [c[0], c[1], c[2], (c[3] ?? 1) * o] : null });
+    // a picture under the text (an img, a video, a CSS background image), where detail under the letters is expected
+    const pic = lines.some((q) => [0.25, 0.5, 0.75].some((f) => document.elementsFromPoint(q[0] + f * (q[2] - q[0]), (q[1] + q[3]) / 2).some((e) => e !== el && !e.contains(el) && !el.contains(e) && (/^(img|video)$/i.test(e.tagName) || getComputedStyle(e).backgroundImage !== 'none'))));
+    out.push({ key: text.slice(0, 48), px: parseFloat(cs.fontSize) * scale, lines, ink: lines.map(inkOf), pic, raw: rawBoxes, rawInk: rawBoxes.map(inkOf), box: [b.left, b.top, b.right, b.bottom].map(Math.round), max: Number(box.closest('[data-max-lines]')?.dataset.maxLines) || 0, fg: c ? [c[0], c[1], c[2], (c[3] ?? 1) * o] : null });
   }
   return out;
 };
@@ -272,18 +274,28 @@ function contrastUnder(it, bg) {
 }
 // a shape reaching into text on a plain ground: the share of background pixels under the glyphs' ink (2 px in from every
 // side, so a shape that only abuts the box, such as a caret after the last letter, stays out) far from the ground's median
-// colour, and whether any touch the box's edge. A shape coming in from outside is a small share on the edge; a speck
-// inside, or text over its own shadow (a larger share), is not one
+// colour, and how many of them connect to the box's edge. A shape coming in from outside is a small share, all of it one
+// blob from the edge; a speck inside, the scattered detail of a screenshot or text over its own shadow is not
 function shapeUnder(it, bg) {
-  const bw = W * SS, px = [];
+  const bw = W * SS, grids = [], all = [];
   for (const [l, t, rt, bt] of it.ink) {
-    const y0 = Math.max(0, Math.ceil((t + 2) * SS)), y1 = Math.min(H * SS, Math.floor((bt - 2) * SS)), x0 = Math.max(0, Math.ceil((l + 2) * SS)), x1 = Math.min(bw, Math.floor((rt - 2) * SS));
-    for (let y = y0; y < y1; y += 2 * SS) for (let x = x0; x < x1; x += 2 * SS) { const o = (y * bw + x) * 4; px.push([bg[o], bg[o + 1], bg[o + 2], y - y0 < 2 * SS || y1 - y <= 2 * SS || x - x0 < 2 * SS || x1 - x <= 2 * SS]); }
+    const y0 = Math.max(0, Math.ceil((t + 2) * SS)), y1 = Math.min(H * SS, Math.floor((bt - 2) * SS)), x0 = Math.max(0, Math.ceil((l + 2) * SS)), x1 = Math.min(bw, Math.floor((rt - 2) * SS)), rows = [];
+    for (let y = y0; y < y1; y += 2 * SS) { const row = []; for (let x = x0; x < x1; x += 2 * SS) { const o = (y * bw + x) * 4; row.push([bg[o], bg[o + 1], bg[o + 2]]); } rows.push(row); all.push(...row); }
+    grids.push(rows);
   }
-  if (!px.length) return null;
-  const med = [0, 1, 2].map((c) => px.map((q) => q[c]).sort((a, b) => a - b)[px.length >> 1]);
-  const far = px.filter((q) => Math.hypot(q[0] - med[0], q[1] - med[1], q[2] - med[2]) > 48);
-  return { share: far.length / px.length, edge: far.some((q) => q[3]) };
+  if (!all.length) return null;
+  const med = [0, 1, 2].map((c) => all.map((q) => q[c]).sort((a, b) => a - b)[all.length >> 1]);
+  let far = 0, joined = 0;
+  for (const rows of grids) {
+    const h = rows.length, w = h ? rows[0].length : 0, stack = [];
+    const out = rows.map((r) => r.map((q) => Math.hypot(q[0] - med[0], q[1] - med[1], q[2] - med[2]) > 48)), seen = rows.map((r) => r.map(() => false));
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (out[y][x]) { far++; if (y === 0 || x === 0 || y === h - 1 || x === w - 1) { seen[y][x] = true; stack.push([y, x]); } }
+    while (stack.length) {
+      const [y, x] = stack.pop(); joined++;
+      for (const [yy, xx] of [[y + 1, x], [y - 1, x], [y, x + 1], [y, x - 1]]) if (yy >= 0 && xx >= 0 && yy < h && xx < w && out[yy][xx] && !seen[yy][xx]) { seen[yy][xx] = true; stack.push([yy, xx]); }
+    }
+  }
+  return { share: far / all.length, joined: far ? joined / far : 0 };
 }
 const textHits = new Map();   // "kind|what" -> [{ n: position in the frame list, i: frame, d: detail }]
 let textFrames = 0, textMost = 0;
@@ -297,9 +309,9 @@ function checkText(n, i, items, bg) {
     // the opacity is part of the ratio: a fade-in's first frames read lower than the text will
     // two decimals where one would round up to the bound, so 4.46 never reads as 4.5 "under 4.5:1"
     if (ratio !== null && ratio < MIN_CONTRAST) add('contrast', it.key, `${ratio.toFixed(Number(ratio.toFixed(1)) >= MIN_CONTRAST ? 2 : 1)}:1${it.fg[3] < 0.995 ? ` at ${Math.round(it.fg[3] * 100)}% opacity` : ''}`);
-    // a shape under text that already fails contrast is that warning's to fix: text over a busy picture reads as both
-    const under = bg && !(ratio !== null && ratio < MIN_CONTRAST) ? shapeUnder(it, bg) : null;
-    if (under && under.edge && under.share <= 0.1) add('shape', it.key, `${(under.share * 100).toFixed(1)}%`);
+    // not under text over a picture, where detail is expected, nor under text that already fails contrast, that warning's to fix
+    const under = bg && !it.pic && !(ratio !== null && ratio < MIN_CONTRAST) ? shapeUnder(it, bg) : null;
+    if (under && under.share <= 0.1 && under.joined >= 0.95) add('shape', it.key, `${(under.share * 100).toFixed(1)}%`);
     // margins, UI bands and the frame's edge are measured on the ink
     const inView = it.ink.every(([l, t, r, b]) => l >= 0 && t >= 0 && r <= W && b <= H);
     if (inView && it.ink.some(([l, t, r, b]) => l < mx || t < my || r > W - mx || b > H - my)) add('safe', it.key);
