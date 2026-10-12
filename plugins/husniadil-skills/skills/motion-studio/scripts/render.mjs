@@ -229,7 +229,13 @@ const measureText = () => {
     const b = box.getBoundingClientRect(), scale = el.offsetHeight ? el.getBoundingClientRect().height / el.offsetHeight : 1;
     // the text's colour as sRGB with its alpha times the opacity above it; a colour that is not rgb() is not measured
     const cs = getComputedStyle(el), c = (el instanceof SVGElement ? cs.fill : cs.color).match(/^rgba?\(([^)]+)\)$/)?.[1].split(/[\s,/]+/).filter(Boolean).map(Number);
-    out.push({ key: text.slice(0, 48), px: parseFloat(cs.fontSize) * scale, lines, raw: raw.map((q) => [q.left, q.top, q.right, q.bottom]), box: [b.left, b.top, b.right, b.bottom].map(Math.round), max: Number(box.closest('[data-max-lines]')?.dataset.maxLines) || 0, fg: c ? [c[0], c[1], c[2], (c[3] ?? 1) * o] : null });
+    // the glyphs' ink, top to bottom, on each line: a line's box is the font's full ascent plus descent, which can reach
+    // past its line-height, so two blocks set close can overlap there while no glyph touches
+    const ctx = (window.__renderMjsInk ??= document.createElement('canvas').getContext('2d'));
+    ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const m = ctx.measureText(text), fh = m.fontBoundingBoxAscent + m.fontBoundingBoxDescent;
+    const ink = lines.map(([l, t, r, bt]) => { const k = (bt - t) / fh; return [l, t + (m.fontBoundingBoxAscent - m.actualBoundingBoxAscent) * k, r, t + (m.fontBoundingBoxAscent + m.actualBoundingBoxDescent) * k]; });
+    out.push({ key: text.slice(0, 48), px: parseFloat(cs.fontSize) * scale, lines, ink, raw: raw.map((q) => [q.left, q.top, q.right, q.bottom]), box: [b.left, b.top, b.right, b.bottom].map(Math.round), max: Number(box.closest('[data-max-lines]')?.dataset.maxLines) || 0, fg: c ? [c[0], c[1], c[2], (c[3] ?? 1) * o] : null });
   }
   return out;
 };
@@ -288,10 +294,10 @@ function checkText(n, i, items, bg) {
     for (const [, t, , b] of ls) if (t - last > (b - t) / 2) { count++; last = t; }
     if (count > max) add('lines', key, `${count} lines, over its data-max-lines of ${max}`);
   }
-  // two text boxes from different blocks drawn over each other
+  // two text boxes from different blocks whose glyphs' ink overlaps
   for (let a = 0; a < items.length; a++) for (let b = a + 1; b < items.length; b++) {
     if (items[a].box.join() === items[b].box.join()) continue;
-    const hit = items[a].lines.some(([l1, t1, r1, b1]) => items[b].lines.some(([l2, t2, r2, b2]) => Math.min(r1, r2) - Math.max(l1, l2) > 2 && Math.min(b1, b2) - Math.max(t1, t2) > 2));
+    const hit = items[a].ink.some(([l1, t1, r1, b1]) => items[b].ink.some(([l2, t2, r2, b2]) => Math.min(r1, r2) - Math.max(l1, l2) > 2 && Math.min(b1, b2) - Math.max(t1, t2) > 2));
     if (hit) add('collide', `"${items[a].key}" and "${items[b].key}"`);
   }
 }
