@@ -1,0 +1,7 @@
+<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:#111;color:#eee;font:600 48px Helvetica,Arial,sans-serif}#h{position:absolute;left:40px;top:120px}</style>
+<div id="h"></div><script>
+// a copy variant chosen by a URL parameter
+const L = new URLSearchParams(location.search).get('lang') === 'id' ? 'Laporan bulanan Anda' : 'Your monthly report';
+const h = document.getElementById('h'); h.textContent = L;
+window.renderAt = (t) => { h.style.transform = `translateX(${Math.round(100 * t)}px)`; };
+</script>

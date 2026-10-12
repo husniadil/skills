@@ -1,0 +1,26 @@
+<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:#111}</style><canvas id="c" width="640" height="360"></canvas><script>
+const g = document.getElementById('c').getContext('2d'), SECONDS = 4, BEAT = 0.5;
+window.renderAt = (t) => {
+  const since = t % BEAT, s = 1 + 0.25 * Math.exp(-since * 12);
+  g.fillStyle = '#111'; g.fillRect(0, 0, 640, 360);
+  g.fillStyle = '#D97757'; g.beginPath(); g.arc(320, 180, 60 * s, 0, 7); g.fill();
+};
+// a peaky score: kicks on every beat, a hard clap on 2 and 4, a quiet pad
+window.renderAudio = () => {
+  const sr = 48000, ac = new OfflineAudioContext(2, sr * SECONDS, sr);
+  for (let b = 0; b * BEAT < SECONDS; b++) {
+    const t0 = b * BEAT + 1 / 30, o = ac.createOscillator(), gn = ac.createGain();
+    o.frequency.setValueAtTime(160, t0); o.frequency.exponentialRampToValueAtTime(45, t0 + 0.25);
+    gn.gain.setValueAtTime(1.0, t0); gn.gain.exponentialRampToValueAtTime(0.001, t0 + 0.3);
+    o.connect(gn).connect(ac.destination); o.start(t0); o.stop(t0 + 0.32);
+    if (b % 2) {
+      const n = ac.createBufferSource(), buf = ac.createBuffer(1, sr * 0.08, sr), d = buf.getChannelData(0);
+      let x = 1; for (let i = 0; i < d.length; i++) { x = (x * 16807) % 2147483647; d[i] = (x / 2147483647 * 2 - 1) * Math.exp(-i / (sr * 0.015)); }
+      n.buffer = buf; const ng = ac.createGain(); ng.gain.value = 0.9; n.connect(ng).connect(ac.destination); n.start(t0);
+    }
+  }
+  const pad = ac.createOscillator(), pg = ac.createGain(); pad.type = 'triangle'; pad.frequency.value = 220; pg.gain.value = 0.05;
+  pad.connect(pg).connect(ac.destination); pad.start(0); pad.stop(SECONDS);
+  return ac.startRendering();
+};
+</script>

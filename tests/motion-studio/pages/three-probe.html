@@ -1,0 +1,10 @@
+<!doctype html><meta charset="utf-8"><style>html,body{margin:0}</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+const r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(320, 180); document.body.appendChild(r.domElement);
+const s = new THREE.Scene(), c = new THREE.PerspectiveCamera(40, 16 / 9, 0.1, 10); c.position.z = 3;
+const m = new THREE.Mesh(new THREE.TorusKnotGeometry(0.6, 0.2, 128, 16), new THREE.MeshNormalMaterial()); s.add(m);
+window.renderAt = (t) => { m.rotation.y = t * Math.PI; r.render(s, c); };
+window.__ready = true;
+</script><script>window.__ready = false;</script>

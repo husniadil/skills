@@ -1,0 +1,5 @@
+<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:#0a0a0b}</style><script>
+// the canvas is never attached, so nothing reaches the page
+const cv = document.createElement('canvas'); cv.width = 640; cv.height = 360; const g = cv.getContext('2d');
+window.renderAt = (t) => { g.fillStyle = '#d97757'; g.fillRect(0, 0, 640, 360); g.fillStyle = '#fff'; g.fillRect(40 + 200 * t, 40, 40, 40); };
+</script>

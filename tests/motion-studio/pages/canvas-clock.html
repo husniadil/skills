@@ -1,0 +1,10 @@
+<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:#111}</style><canvas id="c" width="640" height="360"></canvas><script>
+const g = document.getElementById('c').getContext('2d');
+const PERIOD = 2;
+window.renderAt = (t) => {
+  t = t + performance.now() / 1000;
+  g.fillStyle = '#111'; g.fillRect(0, 0, 640, 360);
+  const a = 2 * Math.PI * t / PERIOD;
+  g.fillStyle = '#D97757'; g.beginPath(); g.arc(320 + 140 * Math.cos(a), 180 + 120 * Math.sin(a), 30, 0, 7); g.fill();
+};
+</script>

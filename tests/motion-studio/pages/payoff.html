@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:#222}</style><canvas id="c" width="640" height="360"></canvas><script>
+const g = document.getElementById('c').getContext('2d');
+window.renderAt = (t) => { g.fillStyle = '#222'; g.fillRect(0, 0, 640, 360); g.fillStyle = '#fff'; g.fillRect(40 + 150 * t, 100, 40, 40); };
+// a pad with ticks for 1.4 s, silence until the payoff hit on frame 60 (2.0 s at 30 fps), then a quieter pad to 4 s
+window.renderAudio = async (opts = {}) => {
+  const sr = 48000, ctx = new OfflineAudioContext(2, sr * 4, sr);
+  const tone = (f, t0, t1, level) => { const o = ctx.createOscillator(), e = ctx.createGain(); o.frequency.value = f; e.gain.setValueAtTime(level, t0); e.gain.setValueAtTime(level, t1 - 0.01); e.gain.linearRampToValueAtTime(0, t1); o.connect(e).connect(ctx.destination); o.start(t0); o.stop(t1); };
+  const hit = (F, f, level, decay) => { const peak = (F + 1) / 30, o = ctx.createOscillator(), e = ctx.createGain(); o.frequency.value = f; e.gain.setValueAtTime(0, 0); e.gain.setValueAtTime(0, peak - 0.00075); e.gain.linearRampToValueAtTime(level, peak); e.gain.exponentialRampToValueAtTime(0.001, peak + decay); o.connect(e).connect(ctx.destination); o.start(peak - 0.25 / f); o.stop(peak + decay + 0.05); };
+  if (opts.only !== 'hits') { tone(220, 0, 1.4, 0.08); tone(220, 2.6, 4, 0.03); }
+  if (opts.only !== 'bed') { for (const F of [6, 18, 30]) hit(F, 660, 0.15, 0.1); hit(60, 330, 0.6, 0.5); hit(60, 165, 0.4, 0.6); }
+  return ctx.startRendering();
+};
+</script>

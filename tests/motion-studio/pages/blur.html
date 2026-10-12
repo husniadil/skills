@@ -1,0 +1,5 @@
+<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:#000}div{position:absolute;width:200px;height:100px;background:#fff;left:220px}
+#a{top:40px;filter:url(#def)}#b{top:220px;filter:url(#wide)}</style>
+<svg width="0" height="0" style="position:absolute"><filter id="def"><feGaussianBlur stdDeviation="40 3"/></filter>
+<filter id="wide" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="40 3"/></filter></svg>
+<div id="a"></div><div id="b"></div><script>window.renderAt = () => {};</script>

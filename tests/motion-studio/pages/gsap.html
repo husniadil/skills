@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8">
+<style>html,body{margin:0;background:#111}.b{position:absolute;top:150px;width:60px;height:60px;background:#eee}#a{left:40px}#b{left:140px;background:#d97757}#c{left:240px;background:#7aa}</style>
+<div class="b" id="a"></div><div class="b" id="b"></div><div class="b" id="c"></div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+<script>
+// A 2 s loop: every element ends where it starts, so frame N equals frame 0.
+const tl = gsap.timeline({ paused: true });
+tl.to('#a', { x: 300, duration: 1, ease: 'power3.inOut' })
+  .to('#a', { x: 0, duration: 1, ease: 'power3.inOut' })
+  .fromTo('.b:not(#a)', { y: 0 }, { y: -100, duration: 0.5, stagger: 0.25, ease: 'back.out(1.7)', yoyo: true, repeat: 1 }, 0)
+  .to('#c', { rotation: 360, duration: 2, ease: 'none' }, 0);
+window.renderAt = (t) => tl.totalTime(t, true);
+const q = new URLSearchParams(location.search);
+if (!q.has('t')) { let s = null; const loop = (ts) => { if (s === null) s = ts; renderAt(((ts - s) / 1000) % 2); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+</script>

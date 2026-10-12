@@ -1,0 +1,63 @@
+<!doctype html><meta charset="utf-8"><style>
+html,body{margin:0;background:#202020;overflow:hidden}
+video{display:none}
+canvas{position:absolute;top:0;width:320px;height:180px;visibility:hidden}
+#ca{left:0}#cb{left:320px}
+#bar{position:absolute;left:0;top:260px;width:80px;height:40px;background:#e8a33d}
+</style>
+<video id="a" src="clips/code24.mp4" muted playsinline preload="auto"></video>
+<video id="b" src="clips/code25.webm" muted playsinline preload="auto"></video>
+<canvas id="ca"></canvas><canvas id="cb"></canvas>
+<div id="bar"></div>
+<script>
+const RENDER = new URLSearchParams(location.search).has('t');
+
+// A clip on the timeline, drawn into a canvas: source time = from + (t - at) * rate. Hidden before `at`; past `to` (or the
+// file's end) it holds its last frame when `hold` is set, and hides otherwise.
+const clips = [];
+function clip(el, canvas, { at = 0, from = 0, to = Infinity, rate = 1, hold = false } = {}) {
+  canvas.width = canvas.clientWidth * devicePixelRatio; canvas.height = canvas.clientHeight * devicePixelRatio;   // sharp under --ss
+  clips.push({ el, canvas, ctx: canvas.getContext('2d'), at, from, to, rate, hold });
+}
+function sourceTime(c, t) {
+  if (t < c.at) return null;
+  // 1 ms into the frame: a seek to the exact start of a source frame can land a hair before it and show the one before
+  const end = Math.min(c.to, c.el.duration), s = c.from + (t - c.at) * c.rate + 0.001;
+  return s < end ? s : c.hold ? end - 0.001 : null;
+}
+// The canvas shows the video's frame once the seek is done: drawn into the page, it is on the next screenshot.
+// Preview: let the video play and draw its current frame; seek only when it drifts more than 0.2 s from the timeline.
+function syncClip(c, t) {
+  const s = sourceTime(c, t), v = c.el, draw = () => c.ctx.drawImage(v, 0, 0, c.canvas.width, c.canvas.height);
+  c.canvas.style.visibility = s === null ? 'hidden' : 'visible';
+  if (!RENDER) {
+    if (s === null || (c.hold && s >= Math.min(c.to, v.duration) - 0.002)) v.pause();
+    else { v.playbackRate = c.rate; if (v.paused) v.play(); }
+    if (s !== null && Math.abs(v.currentTime - s) > 0.2) v.currentTime = s;
+    if (s !== null) draw();
+    return;
+  }
+  if (s === null) return;
+  if (Math.abs(v.currentTime - s) < 1e-6 && !v.seeking) { draw(); return; }
+  return new Promise((res) => { v.addEventListener('seeked', () => { draw(); res(); }, { once: true }); v.currentTime = s; });
+}
+
+clip(document.getElementById('a'), document.getElementById('ca'), { at: 0.5, from: 1, to: 4, hold: true });
+clip(document.getElementById('b'), document.getElementById('cb'), { rate: 0.5 });
+
+// render.mjs waits until every clip has its first frame decoded
+window.__ready = false;
+Promise.all(clips.map((c) => c.el.readyState >= 2 || new Promise((res) => c.el.addEventListener('loadeddata', res, { once: true }))))
+  .then(() => { window.__ready = true; });
+
+const bar = document.getElementById('bar');
+window.renderAt = (t) => {
+  bar.style.transform = `translateX(${Math.round(560 * t / 4)}px)`;
+  return Promise.all(clips.map((c) => syncClip(c, t)));
+};
+if (!RENDER) {
+  let start = null;
+  const tick = (ms) => { start ??= ms; window.previewT = ((ms - start) / 1000) % 4; window.renderAt(window.previewT); requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+}
+</script>

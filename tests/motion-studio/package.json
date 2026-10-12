@@ -1,0 +1,8 @@
+{
+  "name": "motion-studio-tests",
+  "private": true,
+  "description": "The render suite and probes behind motion-studio's checks and numbers: run zsh gate.zsh",
+  "devDependencies": {
+    "playwright": "1.63"
+  }
+}

@@ -1,0 +1,4 @@
+<!doctype html><meta charset="utf-8"><style>html,body{margin:0}</style><canvas id="c" width="640" height="360"></canvas><script>
+const g = document.getElementById('c').getContext('2d');
+window.renderAt = (t) => { const f = (t * 30) % 1; g.fillStyle = f < 0.25 ? '#fff' : '#000'; g.fillRect(0, 0, 640, 360); };
+</script>

@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"><style>
+html,body{margin:0;background:#000;overflow:hidden}
+#bg{position:absolute;left:0;top:0;width:1080px;height:1080px;object-fit:cover}
+#scrim{position:absolute;left:0;top:0;width:1080px;height:1080px}
+#block{position:absolute;color:#fff;font-family:"Avenir Next",system-ui,sans-serif}
+#h{font-size:74px;line-height:84px;font-weight:600;white-space:nowrap}
+#l{font-size:40px;line-height:48px;font-weight:500;white-space:nowrap}
+</style>
+<img id="bg"><div id="scrim"></div>
+<div id="block"><div id="h">Launch week</div><div id="l">Everything you need, in one place</div></div>
+<script>
+// a text block over a picture under a dark scrim, at a different place on each frame: 6 across, 10 down
+const q = new URLSearchParams(location.search), img = document.getElementById('bg'), block = document.getElementById('block');
+document.getElementById('scrim').style.background = `rgba(0,0,0,${q.get('scrim') || 0.55})`;
+window.__ready = false;
+img.onload = () => { window.__ready = true; };
+img.src = `assets/${q.get('img') || 'site'}.png`;
+window.renderAt = (t) => { const f = Math.round(t * 30) % 60; block.style.left = `${60 + (f % 6) * 68}px`; block.style.top = `${60 + Math.floor(f / 6) * 93}px`; };
+</script>

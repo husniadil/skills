@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><style>
+html,body{margin:0;background:#F3EBDD;color:#2B2420}
+div{position:absolute}
+.t{white-space:nowrap;font-family:"Iowan Old Style",Georgia,serif;font-size:74px;line-height:84px}
+.dot{border-radius:50%;background:#2B2420;width:80px;height:80px}
+#caret{display:inline-block;width:3px;height:60px;background:#2B2420;vertical-align:middle}
+#a{left:100px;top:100px}
+#b{left:100px;top:300px}#db{left:260px;top:345px;width:10px;height:10px}
+#c{left:100px;top:500px}
+#d{left:100px;top:700px}
+#e{left:600px;top:700px}
+</style>
+<div class="dot" id="da"></div><div class="t" id="a">Touched</div>
+<div class="dot" id="db"></div><div class="t" id="b">Speck inside</div>
+<div class="t" id="c">Caret<span id="caret"></span></div>
+<div class="dot" id="dd"></div><div class="t" id="d">Brief</div>
+<div class="dot" id="de"></div><div class="t" id="e">Longer</div>
+<script>
+// each shape sits 50 px in from its word's right edge and 50 px down from its top, so it reaches into the last letter's corner
+for (const [dot, word] of [['da', 'a'], ['dd', 'd'], ['de', 'e']]) {
+  const r = document.getElementById(word).getBoundingClientRect(), s = document.getElementById(dot).style;
+  s.left = `${Math.round(r.right - 50)}px`; s.top = `${Math.round(r.top + 50)}px`;
+}
+// the shape reaches into "Brief" on frames 10 to 12 only, and into "Longer" on frames 30 to 35
+const dd = document.getElementById('dd'), de = document.getElementById('de');
+window.renderAt = (t) => { const f = Math.round(t * 30); dd.style.visibility = f >= 10 && f <= 12 ? 'visible' : 'hidden'; de.style.visibility = f >= 30 && f <= 35 ? 'visible' : 'hidden'; };
+</script>

@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><style>
+html,body{margin:0;background:#101418;color:#f2f2f2;font-family:Helvetica,Arial,sans-serif;overflow:hidden}
+.card{position:absolute;background:#1558c0;border-radius:calc(16px * var(--u));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:calc(48px * var(--u))}
+#cap{position:absolute;font-size:calc(56px * var(--u));font-weight:700;white-space:nowrap}
+</style>
+<div id="cap" data-max-lines="1">One piece, three shapes</div>
+<div class="card">Plan</div><div class="card">Build</div><div class="card">Ship</div>
+<script>
+// the shape is read once from ?format=; positions are fractions of the frame, sizes come from one unit (the width / 1080)
+const q = new URLSearchParams(location.search), format = q.get('format') || '1:1', W = innerWidth, H = innerHeight, U = W / 1080;
+const portrait = H > W * 1.2 && q.get('layout') !== 'row';
+document.documentElement.style.setProperty('--u', U);
+const cap = document.getElementById('cap'), cards = [...document.querySelectorAll('.card')], cw = 280 * U, ch = 180 * U;
+cap.style.left = `${0.1 * W}px`; cap.style.top = `${(portrait ? 0.16 : 0.12) * H}px`;
+cards.forEach((c, i) => {
+  c.style.width = `${cw}px`; c.style.height = `${ch}px`;
+  if (portrait) { c.style.left = `${(W - cw) / 2}px`; c.style.top = `${0.3 * H + i * (ch + 40 * U)}px`; }   // a column on 9:16
+  else { c.style.left = `${(0.07 + 0.29 * i) * W}px`; c.style.top = `${0.45 * H}px`; }                 // a row elsewhere
+});
+window.renderAt = (t) => cards.forEach((c, i) => { c.style.opacity = Math.min(1, Math.max(0, (t - 0.2 * i) / 0.3)); });
+</script>

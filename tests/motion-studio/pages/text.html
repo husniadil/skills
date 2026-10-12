@@ -1,0 +1,31 @@
+<!doctype html><meta charset="utf-8"><style>
+html,body{margin:0;background:#111;color:#eee;font-family:Helvetica,Arial,sans-serif}
+div{position:absolute}
+#ok{left:100px;top:100px;font-size:48px}
+#small{left:100px;top:200px;font-size:20px}
+#tex{left:100px;top:240px;font-size:14px}
+#edge{left:10px;top:300px;font-size:40px}
+#over{left:100px;top:380px;width:120px;font-size:40px;white-space:nowrap}
+#two{left:600px;top:100px;width:300px;font-size:44px}
+#a{left:600px;top:400px;font-size:40px}#b{left:640px;top:410px;font-size:40px}
+#slide{top:520px;font-size:40px}
+#pane{left:100px;top:640px;width:440px;height:120px;background:#d8d8d8}#low{left:120px;top:670px;font-size:48px;color:#fff}
+#cutoff{left:900px;top:960px;font-size:48px;white-space:nowrap}
+#speck{left:610px;top:662px;width:12px;height:12px;background:#fff}#specks{left:600px;top:640px;font-size:48px}
+</style>
+<div id="ok">Fine headline</div>
+<div id="small">A tiny caption</div>
+<div id="tex" aria-hidden="true">texture only</div>
+<div id="edge">At the edge</div>
+<div id="over">Overflowing line</div>
+<div id="two" data-max-lines="1">Two lines of copy here</div>
+<div id="a">Alpha</div><div id="b">Bravo</div>
+<div id="slide">Sliding past the margin</div>
+<div id="pane"></div><div id="low">Low contrast</div>
+<div id="cutoff">Cut by the frame</div>
+<div id="speck"></div><div id="specks">Specks pass</div>
+<script>
+// one block slides from off the left edge to x 300 over the first half second, then rests
+const s = document.getElementById('slide');
+window.renderAt = (t) => { s.style.left = `${Math.round(-400 + 700 * Math.min(1, t / 0.5))}px`; };
+</script>

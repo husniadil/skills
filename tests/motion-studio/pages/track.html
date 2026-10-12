@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:#222}</style><canvas id="c" width="640" height="360"></canvas><script>
+const g = document.getElementById('c').getContext('2d');
+window.renderAt = (t) => { g.fillStyle = '#222'; g.fillRect(0, 0, 640, 360); g.fillStyle = '#fff'; g.fillRect(40 + 60 * t, 100, 40, 40); };
+// sound effects only, for a song mixed under them with --track: one hit on frame 120 (4 s at 30 fps)
+window.renderAudio = async (opts = {}) => {
+  const sr = 48000, ctx = new OfflineAudioContext(2, sr * 8, sr);
+  if (opts.only !== 'bed') { const peak = 121 / 30, f = 1320, o = ctx.createOscillator(), e = ctx.createGain();
+    o.frequency.value = f; e.gain.setValueAtTime(0, 0); e.gain.setValueAtTime(0, peak - 0.00075); e.gain.linearRampToValueAtTime(0.3, peak); e.gain.exponentialRampToValueAtTime(0.001, peak + 0.3);
+    o.connect(e).connect(ctx.destination); o.start(peak - 0.25 / f); o.stop(peak + 0.35); }
+  return ctx.startRendering();
+};
+</script>
