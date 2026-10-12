@@ -279,7 +279,8 @@ function checkText(n, i, items, bg) {
   for (const it of items) {
     if (it.px < minPx - 0.5) add('small', it.key, `${Math.round(it.px)} px`);
     const ratio = bg && it.fg ? contrastUnder(it, bg) : null;
-    if (ratio !== null && ratio < MIN_CONTRAST) add('contrast', it.key, `${ratio.toFixed(1)}:1`);
+    // the opacity is part of the ratio: a fade-in's first frames read lower than the text will
+    if (ratio !== null && ratio < MIN_CONTRAST) add('contrast', it.key, `${ratio.toFixed(1)}:1${it.fg[3] < 0.995 ? ` at ${Math.round(it.fg[3] * 100)}% opacity` : ''}`);
     // margins, UI bands and the frame's edge are measured on the ink
     const inView = it.ink.every(([l, t, r, b]) => l >= 0 && t >= 0 && r <= W && b <= H);
     if (inView && it.ink.some(([l, t, r, b]) => l < mx || t < my || r > W - mx || b > H - my)) add('safe', it.key);
@@ -496,7 +497,11 @@ if (withAudio) {
     const L = db.indexOf(Math.max(...db));
     let run = 0, best = 0, bestEnd = L;
     for (let w = Math.max(0, L - 20); w < L; w++) { run = db[w] <= -40 ? run + 1 : 0; if (run > best) { best = run; bestEnd = w + 1; } }
-    console.log(`payoff: the loudest 100 ms starts at ${(L / 10).toFixed(2)} s (frame ${Math.round(L / 10 * fps)}), ${db[L].toFixed(1)} dBFS; in the 2 s before it, ${(best / 10).toFixed(1)} s at -40 dBFS or under${best ? `, ending at ${(bestEnd / 10).toFixed(2)} s` : ''} (sound.md, The arc)`);
+    // the windows sit on a 0.1 s grid, so the one a hit makes can start up to 0.1 s after its peak, later for a held hit:
+    // with --hits, name the hit that peaks from 0.15 s before the window's start to its end
+    const owner = hits && Math.max(-1, ...hits.filter((F) => (F + 1) / fps >= L / 10 - 0.15 && (F + 1) / fps < L / 10 + 0.1));
+    const whose = !hits ? '' : owner >= 0 ? `, the hit on frame ${owner}` : ', on none of the --hits frames';
+    console.log(`payoff: the loudest 100 ms starts at ${(L / 10).toFixed(2)} s (frame ${Math.round(L / 10 * fps)}${whose}), ${db[L].toFixed(1)} dBFS; in the 2 s before it, ${(best / 10).toFixed(1)} s at -40 dBFS or under${best ? `, ending at ${(bestEnd / 10).toFixed(2)} s` : ''} (sound.md, The arc)`);
   }
 }
 // --- hit timing and level (--hits F,F,...): the score's parts rendered alone and measured the way sound.md defines them

@@ -1,6 +1,6 @@
 # Story: from one sentence to a beat table
 
-GOAL says what a piece is for. For a piece over about 20 seconds, or one with a voice, decide next what happens in what order, why each cut happens and where the sound turns, and check that with the user before anything is animated. The rules here come from animate (cth9191, MIT): its author's shot logs of 16 short story-driven animations, and the formats its own pieces were built from. Where a format has carried a finished piece there, the table says so. In this skill, the sixth end-to-end test carried a fixed-hero journey and the seventh a machine.
+GOAL says what a piece is for. For a piece over about 20 seconds, or one with a voice, decide next what happens in what order, why each cut happens and where the sound turns, and check that with the user before anything is animated. The rules here come from animate (cth9191, MIT): its author's shot logs of 16 short story-driven animations, and the formats its own pieces were built from. Where a format has carried a finished piece there, the table says so. In this skill, the sixth end-to-end test carried a fixed-hero journey, the seventh a machine and the eighth a mission.
 
 ## Five things every piece holds
 
