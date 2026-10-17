@@ -14,6 +14,8 @@ Extracts frames at adaptive rates, creates montage grids, detects scene changes,
 - Social media downloads (Instagram, TikTok) embed a MJPEG thumbnail as video stream 0. The scripts auto-detect the real H.264/H.265 stream and skip `attached_pic` streams.
 - macOS `grep` lacks `-P` (Perl regex). All scripts use `sed` and basic `grep` for compatibility.
 - FFmpeg treats `.` in output filenames as image sequence patterns. Key frame extraction uses `-update 1` to write single images.
+- FFmpeg reads stdin for keyboard commands, so inside a `while read` loop it eats the lines the loop has not read yet. The scripts pass `-nostdin` to every ffmpeg, and running them in a loop over several videos is safe.
+- Under `set -o pipefail`, `ffmpeg ... | grep -q` can fail even on a match: grep quits early and ffmpeg dies of SIGPIPE. It is a race, so it can pass one day and fail the next. Read ffmpeg's output into a variable first, then grep the variable.
 - Portrait videos (height > width) use 3x5 grid layout instead of 4x4 for better cell visibility.
 - Scene detection threshold is `0.3`. For static content (presentations, documents), lower to `0.1`. For fast action (games, sports), raise to `0.4`.
 - Always verify extraction produced output before dispatching analysis agents.
