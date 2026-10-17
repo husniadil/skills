@@ -8,6 +8,11 @@
 
 set -euo pipefail
 
+# Every ffmpeg here runs with -nostdin. Without it ffmpeg reads stdin for its
+# keyboard commands and eats whatever a loop around it was reading: the key
+# frame times below, or a caller's list of videos, which stopped after the
+# first one.
+
 [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]] && export PATH="$HOME/bin:$PATH"
 
 INPUT="${1:?Usage: extract-frames.sh <input_video> <output_dir> <fps_rate> [max_frames] [stream_index] [grid_layout] [start_time] [end_time]}"
@@ -117,7 +122,13 @@ fi
 
 # Every frame and grid has its timestamp burned in with drawtext, which an
 # ffmpeg built without freetype lacks. Homebrew's plain ffmpeg formula is one.
-if ! ffmpeg -hide_banner -filters 2>/dev/null | grep -q ' drawtext '; then
+# The list is read whole before grep sees it. Piped into grep -q, ffmpeg could
+# be killed by SIGPIPE when grep quit at the match, pipefail made that a
+# failure, and an ffmpeg that has drawtext was reported as lacking it. It is a
+# race: 20 of 20 runs failed on ffmpeg 6.1 on Linux, where it had passed the
+# day before.
+FILTER_LIST=$(ffmpeg -nostdin -hide_banner -filters 2>/dev/null || true)
+if ! grep -q ' drawtext ' <<< "$FILTER_LIST"; then
     echo "ERROR: this ffmpeg has no drawtext filter (built without freetype)." >&2
     echo "On macOS: brew install ffmpeg-full, then put \"\$(brew --prefix ffmpeg-full)/bin\" ahead of the plain ffmpeg on PATH." >&2
     exit 1
@@ -201,7 +212,7 @@ MONTAGE_LIMIT_ARGS=("-frames:v" "$MONTAGE_LIMIT")
 echo "Frame limit: $EFFECTIVE_FRAME_LIMIT"
 
 # Extract individual frames as JPG
-ffmpeg ${TIME_ARGS[@]+"${TIME_ARGS[@]}"} -i "$INPUT" \
+ffmpeg -nostdin ${TIME_ARGS[@]+"${TIME_ARGS[@]}"} -i "$INPUT" \
     "${MAP_ARGS[@]}" \
     -vf "$FILTER" \
     -q:v 2 \
@@ -221,7 +232,7 @@ echo "=== Creating Montage Grids ==="
 GRID_CELL_WIDTH=640
 MONTAGE_FILTER="fps=${FPS},scale='min(${GRID_CELL_WIDTH},iw)':-2,drawtext=text='%{pts\\:hms}':x=5:y=5:fontsize=16:fontcolor=white:borderw=1:bordercolor=black,tile=${GRID_LAYOUT}"
 
-ffmpeg ${TIME_ARGS[@]+"${TIME_ARGS[@]}"} -i "$INPUT" \
+ffmpeg -nostdin ${TIME_ARGS[@]+"${TIME_ARGS[@]}"} -i "$INPUT" \
     "${MAP_ARGS[@]}" \
     -vf "$MONTAGE_FILTER" \
     -q:v 2 \
@@ -236,7 +247,7 @@ echo "Created: $GRIDS montage grids (${GRID_LAYOUT})"
 echo ""
 echo "=== Scene Change Detection ==="
 SCENE_FILE="${OUTPUT_DIR}/scene_changes.txt"
-ffmpeg ${TIME_ARGS[@]+"${TIME_ARGS[@]}"} -i "$INPUT" \
+ffmpeg -nostdin ${TIME_ARGS[@]+"${TIME_ARGS[@]}"} -i "$INPUT" \
     "${MAP_ARGS[@]}" \
     -vf "select='gt(scene,0.3)',showinfo" \
     -f null - 2>&1 | grep 'pts_time' | sed 's/.*pts_time:\([0-9.]*\).*/\1/' | grep '^[0-9]' > "$SCENE_FILE" || true
@@ -279,8 +290,10 @@ PY
         # -ss before -i seeks the input, so a key frame late in a long video
         # does not decode everything before it. The frame is still exact:
         # with only one keyframe at 0s, frames at 31s and 87.2s came out right
-        # (measured).
-        ffmpeg -ss "$TIMESTAMP" -i "$INPUT" \
+        # (measured). -nostdin matters most here: this loop reads its times
+        # from stdin, and an ffmpeg reading it too swallowed the times not yet
+        # read, so 3 scene changes gave 1 key frame and 97.7667 came out as 7.
+        ffmpeg -nostdin -ss "$TIMESTAMP" -i "$INPUT" \
             "${MAP_ARGS[@]}" \
             -frames:v 1 \
             -vf "scale='min(1280,iw)':-2,drawtext=text='${TIMESTAMP}s':x=10:y=10:fontsize=32:fontcolor=white:borderw=2:bordercolor=black" \
