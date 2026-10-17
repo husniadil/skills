@@ -8,6 +8,11 @@
 
 set -euo pipefail
 
+# Every ffmpeg here runs with -nostdin, and the transcribers, which run ffmpeg
+# of their own, get /dev/null as stdin. Otherwise ffmpeg reads stdin for its
+# keyboard commands and eats a caller's list of videos, so a loop over three
+# stopped after the first one.
+
 [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]] && export PATH="$HOME/bin:$PATH"
 
 INPUT="${1:?Usage: extract-audio.sh <input_video> <output_dir> [whisper_model] [start_time] [end_time]}"
@@ -94,7 +99,7 @@ echo "Audio info: $AUDIO_INFO"
 AUDIO_FILE="${OUTPUT_DIR}/audio.wav"
 echo ""
 echo "Extracting audio to WAV (16kHz mono)..."
-ffmpeg ${SEEK_ARGS[@]+"${SEEK_ARGS[@]}"} -i "$INPUT" \
+ffmpeg -nostdin ${SEEK_ARGS[@]+"${SEEK_ARGS[@]}"} -i "$INPUT" \
     ${LENGTH_ARGS[@]+"${LENGTH_ARGS[@]}"} \
     -vn \
     -acodec pcm_s16le \
@@ -109,7 +114,7 @@ echo "Audio extracted: $AUDIO_FILE"
 echo ""
 echo "=== Silence Detection ==="
 SILENCE_FILE="${OUTPUT_DIR}/silence.txt"
-ffmpeg -i "$AUDIO_FILE" \
+ffmpeg -nostdin -i "$AUDIO_FILE" \
     -af "silencedetect=noise=-30dB:d=0.5" \
     -f null - 2>&1 | grep -E "silence_(start|end)" > "$SILENCE_FILE" || true
 
@@ -142,7 +147,7 @@ fi
 echo ""
 echo "=== Volume Analysis ==="
 VOLUME_FILE="${OUTPUT_DIR}/volume.txt"
-ffmpeg -i "$AUDIO_FILE" \
+ffmpeg -nostdin -i "$AUDIO_FILE" \
     -af "volumedetect" \
     -f null - 2>&1 | grep -E "(mean_volume|max_volume|histogram)" > "$VOLUME_FILE" || true
 
@@ -181,7 +186,7 @@ if [[ ( -n "${GROQ_API_KEY:-}" || -n "${GROQ_BASE_URL:-}" ) && -x "$TRANSCRIBE" 
     # Its progress is kept in transcribe.log as well, to count the chunks
     # that Groq refused and OpenAI's whisper-1 transcribed instead.
     "$TRANSCRIBE" "$AUDIO_FILE" --model "$HOSTED_MODEL" --format all --out "$OUTPUT_DIR" \
-        --offset "$START_SECONDS" 2>&1 | tee "${OUTPUT_DIR}/transcribe.log"
+        --offset "$START_SECONDS" < /dev/null 2>&1 | tee "${OUTPUT_DIR}/transcribe.log"
     OPENAI_FALLBACK_CHUNKS=$(grep -c "falling back to OpenAI" "${OUTPUT_DIR}/transcribe.log" || true)
 
     echo "Transcription complete. Output files:"
@@ -195,7 +200,7 @@ elif command -v whisper &>/dev/null; then
         --output_dir "$OUTPUT_DIR" \
         --output_format all \
         --verbose False \
-        2>&1
+        < /dev/null 2>&1
 
     # The CLI has no offset of its own, so the range's start is added to
     # audio.json, the file the audio agent reads. Its srt, vtt and tsv keep
