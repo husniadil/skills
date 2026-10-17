@@ -62,6 +62,27 @@ FFmpeg treats `.` in output filenames as image sequence patterns. For single-fra
 ffmpeg -i input.mp4 -ss 12.73 -frames:v 1 -update 1 "scene_12_73s.jpg"
 ```
 
+## FFmpeg Inside a Loop: `-nostdin`
+
+FFmpeg reads stdin for its keyboard commands. Inside a `while read` loop it swallows the lines the loop has not read yet. Three scene-change times gave one key frame, and `97.7667` was read back as `7`:
+
+```bash
+while IFS= read -r t; do
+    ffmpeg -nostdin -ss "$t" -i input.mp4 -frames:v 1 -update 1 "scene_${t}s.jpg"
+done <<< "$TIMES"
+```
+
+The same happens one level up: a script that runs ffmpeg, called from a caller's loop over videos, eats that caller's list. Pass `-nostdin`, or give anything that runs ffmpeg itself `< /dev/null`.
+
+## Checking ffmpeg's Output Under `pipefail`
+
+`ffmpeg -filters | grep -q drawtext` can fail under `set -o pipefail` even when drawtext is there. `grep -q` exits at the match, ffmpeg dies of SIGPIPE (141) if it is still writing, and pipefail reports the pipeline as failed. It is a race: 20 of 20 runs failed on ffmpeg 6.1 on Linux, where the same check had passed the day before. Read the output into a variable first:
+
+```bash
+FILTER_LIST=$(ffmpeg -nostdin -hide_banner -filters 2>/dev/null || true)
+grep -q ' drawtext ' <<< "$FILTER_LIST"
+```
+
 ## Scale Filter
 
 `-2` ensures even dimensions (required by most codecs):
