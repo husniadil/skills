@@ -166,4 +166,5 @@ run with `claude plugin test ./plugins/indonesian-holiday-calendar`.
 MIT, except `plugins/husniadil-skills/skills/analyzing-video`, which is modified from
 [bsisduck/video-analyzer-skill](https://github.com/bsisduck/video-analyzer-skill) and
 stays under GPL-3.0 (its own `LICENSE`). The changes: transcription goes through the
-`transcribe-audio` skill, and its prerequisites are checked before it runs.
+`transcribe-audio` skill, its prerequisites are checked before it runs, and a video URL is
+downloaded with `yt-dlp` before the analysis.
