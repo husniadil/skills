@@ -1,7 +1,7 @@
 ---
 name: analyzing-video
-description: Analyzes video files by extracting frames, detecting scene changes, and optionally transcribing audio. Produces structured markdown analysis with timeline, visual descriptions, and key moments. Use when the user provides a video file (.mp4, .mov, .avi, .mkv, .webm) and wants analysis, asks to "analyze a video", "describe this video", "video timeline", "what happens in this video", or mentions video content understanding. Supports custom frame rates ("at 5fps", "1 frame every 3 seconds"), time ranges ("from 0:10 to 0:30", "first 15 seconds"), visual-only mode ("skip audio"), and user-provided transcripts.
-argument-hint: "[video-path]"
+description: Analyzes video files by extracting frames, detecting scene changes, and optionally transcribing audio. Produces structured markdown analysis with timeline, visual descriptions, and key moments. Use when the user provides a video file (.mp4, .mov, .avi, .mkv, .webm) or a video URL (YouTube or any site yt-dlp supports) and wants analysis, asks to "analyze a video", "describe this video", "video timeline", "what happens in this video", or mentions video content understanding. Supports custom frame rates ("at 5fps", "1 frame every 3 seconds"), time ranges ("from 0:10 to 0:30", "first 15 seconds"), visual-only mode ("skip audio"), and user-provided transcripts.
+argument-hint: "[video-path-or-url]"
 allowed-tools: Bash, Read, Agent
 ---
 
@@ -24,7 +24,7 @@ Extracts frames at adaptive rates, creates montage grids, detects scene changes,
 
 Requires `ffmpeg` with the `drawtext` filter, `ffprobe` and `python3`. For transcription: the `transcribe-audio` skill beside this one with `GROQ_API_KEY` or `GROQ_BASE_URL` (hosted, preferred), or the local `whisper` CLI as an offline fallback.
 
-Check with `command -v ffmpeg ffprobe python3` and `ffmpeg -hide_banner -filters | grep ' drawtext '` before the first script. Homebrew's plain `ffmpeg` formula is built without freetype and has no `drawtext`, so on macOS the install is `brew install ffmpeg-full`, which is keg-only: `"$(brew --prefix ffmpeg-full)/bin"` has to come ahead of the plain one on PATH. On Debian or Ubuntu it is `sudo apt-get install ffmpeg`. If something is missing, stop and tell the user which one and that command. Do not install it yourself, and do not do the analysis another way instead.
+Check with `command -v ffmpeg ffprobe python3` and `ffmpeg -hide_banner -filters | grep ' drawtext '` before the first script. Homebrew's plain `ffmpeg` formula is built without freetype and has no `drawtext`, so on macOS the install is `brew install ffmpeg-full`, which is keg-only: `"$(brew --prefix ffmpeg-full)/bin"` has to come ahead of the plain one on PATH. On Debian or Ubuntu it is `sudo apt-get install ffmpeg`. A URL also needs `yt-dlp`, and a YouTube URL `deno` as well (`brew install yt-dlp deno` on macOS, `pipx install yt-dlp` and Deno's own installer on Linux). If something is missing, stop and tell the user which one and that command. Do not install it yourself, and do not do the analysis another way instead.
 
 ## Transcription Modes
 
@@ -70,6 +70,7 @@ When custom fps is set, tier becomes `custom` and the 1000-frame safety cap appl
 Copy this checklist and track progress:
 
 ```
+- [ ] Step 0: Download the video, if the input is a URL
 - [ ] Step 1: Get video info (tier, stream, orientation)
 - [ ] Step 2: Extract frames + grids + scene key frames
 - [ ] Step 3: Verify extraction output (frames exist, grids exist)
@@ -77,6 +78,23 @@ Copy this checklist and track progress:
 - [ ] Step 5: Synthesize results into analysis document
 - [ ] Step 6: Clean up temp directory
 ```
+
+### Step 0: Download a URL
+
+Skip this for a file. For a URL, download the whole video first, then use the path it prints wherever the steps below say `$ARGUMENTS`:
+
+```bash
+mkdir -p ~/videos
+yt-dlp -f "bv*[height<=720]+ba/b[height<=720]/b" --merge-output-format mp4 \
+  -o "$HOME/videos/%(title)s [%(id)s].%(ext)s" \
+  --print after_move:filepath "<url>"
+```
+
+- 720p is enough, because frames and key frames are scaled to at most 1280 wide.
+- Download the whole video even when the user asks for a time range. A clipped download starts its clock at 0, so the times on the frames and the transcript would no longer match the original.
+- The analysis is written next to the video, so it lands in `~/videos` too.
+- For a YouTube video, the `youtube-transcript` skill beside this one gets YouTube's own captions as a VTT. Passed as the user-provided transcript, it lines up with the frames and needs no Whisper run.
+- On HTTP 429 or a bot check, follow the Cookies section of `youtube-transcript`.
 
 ### Step 1: Get Video Info
 

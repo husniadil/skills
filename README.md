@@ -50,7 +50,7 @@ directory (`~/.claude/skills/`, `.claude/skills/`, `.agents/skills/`, or the equ
 |---|---|---|
 | `model-prompting-guides` | Per-model prompting rules an agent reads before delegating to a subagent or writing a prompt for a specific model | |
 | `goal-prompt` | Writes the condition text for Claude Code's `/goal` | |
-| `analyzing-video` | Frames, scene changes and an optional transcript of a video, analysed by parallel subagents | `ffmpeg`, `ffprobe`, `python3`, and `transcribe-audio` for the audio |
+| `analyzing-video` | Frames, scene changes and an optional transcript of a video file or URL, analysed by parallel subagents | `ffmpeg` with `drawtext` (`ffmpeg-full` on macOS), `ffprobe`, `python3`, `transcribe-audio` for the audio, and `yt-dlp` for a URL (plus `deno` for YouTube) |
 | `transcribe-audio` | A file or URL to text, SRT, VTT or JSON through Groq's hosted Whisper, any length | `ffmpeg`, `ffprobe`, `python3`, `curl`, `GROQ_API_KEY` or `GROQ_BASE_URL`, and `yt-dlp` for a URL |
 | `youtube-transcript` | The captions YouTube already holds, as plain text, with the timestamped VTT kept beside it | `yt-dlp`, `deno` |
 | `leanrea` | Reverse engineers shipped apps and binaries (Electron, Mach-O, ELF, PE, Go, Rust, .NET, APK, WASM, SQLite, pcaps, firmware) with plain CLI tools, adapted from [aicodeking/leanrea](https://github.com/aicodeking/leanrea) | `rg`, `jq`, Xcode command line tools for Mach-O or binutils for ELF, `node` for Electron, and each target's own tool (`jadx`, `ghidra`, `tshark`) only when that target comes up |
