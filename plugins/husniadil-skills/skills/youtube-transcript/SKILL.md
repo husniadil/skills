@@ -1,6 +1,6 @@
 ---
 name: youtube-transcript
-description: Download YouTube video transcript/subtitles using yt-dlp and save as plain text. Use when user shares a YouTube URL and wants transcript, subtitles, or wants to analyze video content.
+description: Download YouTube video transcript/subtitles using yt-dlp and save as plain text, keeping the timestamped VTT beside it. Use when user shares a YouTube URL and wants transcript, subtitles, or wants to analyze video content.
 ---
 
 # YouTube Transcript Downloader
@@ -81,13 +81,11 @@ no captions, or when the captions are too poor to use.
    PY
    ```
 
-5. **Report** the saved file path and line count to the user.
+5. **Keep the VTT.** The plain text drops the cue times, and the VTT is the
+   only copy of them. `analyzing-video` takes it as a user-provided
+   transcript to line the captions up with the frames, with no Whisper run.
 
-6. **Clean up** the intermediate VTT file. Step 3 names it
-   `<title> [<id>].<lang>.vtt`, so the ID sits in the middle:
-   ```bash
-   rm ~/transcripts/*{VIDEO_ID}*.vtt
-   ```
+6. **Report** both paths and the line count to the user.
 
 ## Cookies
 
@@ -141,6 +139,8 @@ Two ways round it, cheapest first:
 - Plain text transcript saved to `~/transcripts/{VIDEO_TITLE} [{VIDEO_ID}].txt`
 - Format: one line per caption line, tags stripped, and the repeat of each
   line in the cue after it dropped
+- The VTT it came from stays at `~/transcripts/{VIDEO_TITLE} [{VIDEO_ID}].{LANG}.vtt`,
+  with the start and end time of every cue
 
 ## Troubleshooting
 
