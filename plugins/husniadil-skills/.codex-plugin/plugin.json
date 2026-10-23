@@ -31,6 +31,8 @@
     "shortDescription": "Prompting guides, media transcripts and workflow commands",
     "longDescription": "Per-model prompting rules for Claude and GPT models, a writer for /goal conditions, image generation through Codex, video analysis, audio transcription through hosted Whisper, YouTube transcripts, reverse engineering of shipped apps and binaries with plain CLI tools, and commands that run a project's gate, audit a diff, fix the findings, commit by path, review a plan and prepare for compaction.",
     "developerName": "Husni Adil Makmur",
+    "logo": "./assets/icon.png",
+    "composerIcon": "./assets/icon.png",
     "category": "Productivity",
     "capabilities": [
       "Interactive"
