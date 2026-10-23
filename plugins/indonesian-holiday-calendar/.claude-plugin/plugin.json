@@ -5,6 +5,7 @@
   "description": "Indonesian public holidays and cuti bersama from the official SKB 3 Menteri decrees: calendar tools for Claude, and the next holiday shown above the prompt in Claude Code.",
   "author": { "name": "Husni Adil Makmur", "url": "https://husniadil.com" },
   "homepage": "https://husniadil.com/calendar/mcp-server",
+  "privacyPolicyUrl": "https://husniadil.com/privacy/#server-mcp-kalender",
   "license": "MIT",
   "icon": "./assets/icon.png",
   "keywords": ["indonesia", "holidays", "calendar", "cuti-bersama", "libur"],

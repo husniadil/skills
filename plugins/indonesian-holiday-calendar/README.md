@@ -2,6 +2,23 @@
 
 Indonesian public holidays and cuti bersama (collective leave), taken from the official SKB 3 Menteri decrees, for Claude. The plugin connects Claude to the calendar's remote MCP server, and in Claude Code it also shows the next holiday above the prompt and tells the model about upcoming holidays at the start of each conversation.
 
+## Install
+
+Claude Code 2.1.275 or later, in one step:
+
+```text
+/plugin install indonesian-holiday-calendar --marketplace husniadil/skills
+```
+
+An older Claude Code adds the marketplace first:
+
+```text
+/plugin marketplace add husniadil/skills
+/plugin install indonesian-holiday-calendar@husniadil
+```
+
+claude.ai or the Claude desktop app: **Customize > Plugins > Add > Add marketplace**, then `husniadil/skills`, and add Indonesian Holiday Calendar.
+
 ## What it adds
 
 **Calendar tools**, from the remote MCP server at `https://husniadil.com/calendar/mcp`. They work in claude.ai chat, Cowork and Claude Code:
@@ -28,7 +45,7 @@ A narrow terminal gets a shorter line, such as `◇ Cuti Bersama Natal, 83 hari 
 
 ## What it sends and fetches
 
-The plugin talks to one server, `https://husniadil.com/calendar/mcp`, run by the author of this plugin. In Claude Code the band calls `check_date` (with no arguments, meaning today in Jakarta) and `next_holiday` (asking for three holidays) when a session starts and then once an hour. Those calls carry no personal data, no file contents and no credentials. The tools Claude calls send only the dates, names or ranges in each call. The plugin stores nothing on disk. It keeps the last answer in memory for the session.
+The plugin talks to one server, `https://husniadil.com/calendar/mcp`, run by the author of this plugin. In Claude Code the band calls `check_date` (with no arguments, meaning today in Jakarta) and `next_holiday` (asking for three holidays) when a session starts and then once an hour. Those calls carry no personal data, no file contents and no credentials. The tools Claude calls send only the dates, names or ranges in each call. The plugin stores nothing on disk. It keeps the last answer in memory for the session. The server's privacy policy is section 5 of [husniadil.com/privacy](https://husniadil.com/privacy/#server-mcp-kalender), in Indonesian.
 
 ## Data
 
