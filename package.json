@@ -8,6 +8,9 @@
     "type": "git",
     "url": "git+https://github.com/husniadil/skills.git"
   },
+  "scripts": {
+    "lint": "python3 scripts/check-skill-descriptions.py"
+  },
   "keywords": [
     "pi-package",
     "prompting",
