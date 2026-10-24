@@ -10,7 +10,7 @@ Audit target: `$ARGUMENTS` (default `current` when empty).
 Route by target, then apply the shared rules below.
 
 - `current`: the uncommitted diff, or the branch against its merge-base if the tree is clean. Invoke the `code-review` skill at high effort. Do not hand-roll a reviewer when the skill is available.
-- `codebase`: the whole repository. If the `agent-teams:review-sweep` skill is available, invoke it. Otherwise, split the tree by module, look for inconsistencies, gaps, and bugs in each, and verify every candidate before reporting it.
+- `codebase`: the whole repository. Split the tree by module, look for inconsistencies, gaps, and bugs in each, and verify every candidate before reporting it.
 - `design`: architecture only, no line-level bugs. Read `CLAUDE.md`, the layering or architecture docs, and the module boundaries first. Look for places where the code violates a rule the project itself wrote down: a layer reaching across a boundary, hidden global state, a contract documented one way and implemented another, duplicated ownership of one concern. Cite the rule and the violating code together.
 
 Shared rules, whatever the target:
