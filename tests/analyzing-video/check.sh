@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# The analyzing-video checks: key frames land on every scene change, and the scripts run inside a caller's loop.
-# Run it from anywhere with bash tests/analyzing-video/check.sh. It needs ffmpeg with drawtext, ffprobe and python3,
+# The analyzing-video checks: key frames land on every scene change, the scripts run inside a caller's loop, and
+# framesift.py keeps one frame per shot and every pose of what moves in it.
+# Run it from anywhere with bash tests/analyzing-video/check.sh. It needs ffmpeg with drawtext, ffprobe, python3 and uv,
 # and builds its own clips in a temporary folder it removes afterwards. A transcriber (Groq or local whisper) is used
 # if one is set up, and the audio loop passes without one. Every line ends in ok or FAIL, and the exit code counts FAILs.
 set -uo pipefail
@@ -50,5 +51,17 @@ RUNS=$(printf 'a\nb\nc\n' | while IFS= read -r tag; do bash "$S/extract-frames.s
 check "extract-frames.sh in a caller's loop of 3" "$RUNS" "3"
 RUNS=$(printf 'a\nb\nc\n' | while IFS= read -r tag; do bash "$S/extract-audio.sh" "$WORK/tone.mp4" "$WORK/audio_$tag" tiny >/dev/null 2>&1; echo "$tag"; done | wc -l | tr -d ' ')
 check "extract-audio.sh in a caller's loop of 3" "$RUNS" "3"
+
+# Two 4 s shots, each with a small box blinking every 0.25 s. The blink is too small to count as a new frame,
+# so each shot keeps one frame, and its box is one cluster with two poses: on and off.
+BLINK="t=fill:enable='lt(mod(t,0.5),0.25)'"
+ffmpeg -nostdin -v error \
+    -f lavfi -i "color=c=gray:s=640x360:d=4,drawgrid=w=40:h=40:t=2:c=white,drawbox=x=40:y=40:w=60:h=40:c=black:$BLINK" \
+    -f lavfi -i "color=c=0x303030:s=640x360:d=4,drawgrid=w=64:h=36:t=4:c=yellow,drawbox=x=400:y=200:w=60:h=40:c=white:$BLINK" \
+    -filter_complex "[0][1]concat=n=2:v=1:a=0,format=yuv420p" -r 30 "$WORK/blink.mp4"
+SIFT=$(uv run "$S/framesift.py" "$WORK/blink.mp4" "$WORK/sift" 2>&1 | tail -n 1)
+check "framesift.py: one frame per shot, two poses per blinking box" "$SIFT" "holistic frames: 2, spans with motion: 2, pose crops: 4"
+TRIGGERS=$(python3 -c 'import json, sys; print(" ".join(k["trigger"] for k in json.load(open(sys.argv[1]))["holistic"]))' "$WORK/sift/index.json" 2>&1)
+check "framesift.py: the second frame is the cut" "$TRIGGERS" "start cut"
 
 exit "$FAILS"

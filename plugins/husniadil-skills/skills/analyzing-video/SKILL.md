@@ -1,6 +1,6 @@
 ---
 name: analyzing-video
-description: Analyzes video files by extracting frames, detecting scene changes, and optionally transcribing audio. Produces structured markdown analysis with timeline, visual descriptions, and key moments. Use when the user provides a video file (.mp4, .mov, .avi, .mkv, .webm) or a video URL (YouTube or any site yt-dlp supports) and wants analysis, asks to "analyze a video", "describe this video", "video timeline", "what happens in this video", or mentions video content understanding. Supports custom frame rates ("at 5fps", "1 frame every 3 seconds"), time ranges ("from 0:10 to 0:30", "first 15 seconds"), visual-only mode ("skip audio"), and user-provided transcripts.
+description: Analyzes video files by extracting frames, detecting scene changes, and optionally transcribing audio. Produces structured markdown analysis with timeline, visual descriptions, and key moments. Use when the user provides a video file (.mp4, .mov, .avi, .mkv, .webm) or a video URL (YouTube or any site yt-dlp supports) and wants analysis, asks to "analyze a video", "describe this video", "video timeline", "what happens in this video", or mentions video content understanding. Supports custom frame rates ("at 5fps", "1 frame every 3 seconds"), time ranges ("from 0:10 to 0:30", "first 15 seconds"), visual-only mode ("skip audio"), and user-provided transcripts. Also sifts a video down to the frames that differ plus the distinct poses of whatever moves inside each shot, for "unique frames", "deduplicate frames", or how a character talks, walks or gestures.
 argument-hint: "[video-path-or-url]"
 allowed-tools: Bash, Read, Agent
 ---
@@ -182,6 +182,23 @@ Merge all agent results into `<video_name>_analysis.md` next to the source video
 rm -rf "<work_dir>"
 ```
 
+## Frame sifting
+
+For "only the frames that change", deduplicated frames, or how a character talks, walks or gestures, run `scripts/framesift.py` instead of the fixed-rate extraction. It needs `uv`, which brings numpy and Pillow from the script's own metadata.
+
+```bash
+uv run ${CLAUDE_SKILL_DIR}/scripts/framesift.py "<video_path>" "<out_dir>" [--vtt captions.vtt] [--unique 20] [--start S --end E]
+```
+
+It decodes at 12 fps and makes two passes over a 32x18 grid of blocks:
+
+- The holistic pass keeps a frame when at least `--unique` percent (default 20) of block averages differ from the last kept frame. A shot where only a mouth moves stays one frame, and cuts, zooms and pans add frames. Block averages ignore small camera drift. A transition is kept once it settles, never on a frame that is near black or still fading.
+- The detail pass groups the blocks that keep moving inside each holistic span into up to three clusters, such as a mouth, a walking figure or a hand. Each cluster's crop is compared with every pose kept so far, so a lip flap cycling A-B-A-B keeps A and B, and `sequence` records which pose shows when.
+
+`<out_dir>` gets `holistic/` frames at 1280x720, `holistic_sheet_NN.jpg` contact sheets, pose crops in `detail/hNNNN/` with one `detail/hNNNN_sheet.jpg` per span, and `index.json` with each time, trigger (`cut` or `change`), cluster box (analysis pixels, times `box_scale` for the saved frames) and pose sequence. With `--vtt`, a YouTube auto-caption VTT from `youtube-transcript`, each span gets `speech_pct` from the per-word times. Whole cues would read as 100%, because rolling captions stay up between lines.
+
+Tune with `--unique` (higher keeps fewer frames), `--variant` (percent of a cluster's moving area that must differ for a new pose, default 10) and `--max-variants` (default 12). Clusters are found by motion alone, so which one is a mouth and which a walk is read from the sheets.
+
 ## Scripts
 
 | Script | Purpose | Args |
@@ -189,6 +206,7 @@ rm -rf "<work_dir>"
 | `scripts/video-info.sh` | Metadata, stream detection, tier | `<video_path>` |
 | `scripts/extract-frames.sh` | Frames, grids, scene detection, key frames | `<video_path> <out_dir> <fps> [max] [stream] [grid]` |
 | `scripts/extract-audio.sh` | Audio, silence detection, transcription | `<video_path> <out_dir> [model] [start] [end]` |
+| `scripts/framesift.py` | Frames that differ, plus the poses of what moves in each shot (run with `uv run`) | `<video_path> <out_dir> [--vtt] [--unique] [--start] [--end]` |
 
 ## References
 
