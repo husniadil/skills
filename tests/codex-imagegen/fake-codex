@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# A stand-in for codex, for the MCP server checks. FAKE_CODEX_DIR holds its switches:
+# signed-in (login status succeeds), approve (the device login completes), dead-token (exec
+# fails the way an expired login did on Codex 0.162.1), alpha (exec "makes" fixture-alpha.png,
+# which has a hole, rather than fixture.png).
+set -uo pipefail
+d=$FAKE_CODEX_DIR
+
+case "$1 ${2:-}" in
+  "login status")
+    if [[ -f "$d/signed-in" ]]; then echo "Logged in using ChatGPT"; exit 0; fi
+    echo "Not logged in"; exit 1 ;;
+  "login --device-auth")
+    echo "$$" >> "$d/logins"
+    # The real output's shape, colours included.
+    printf '1. Open this link in your browser and sign in to your account\n   \033[94mhttps://auth.openai.com/codex/device\033[0m\n\n'
+    printf '2. Enter this one-time code \033[90m(expires in 15 minutes)\033[0m\n   \033[94mABCD-12345\033[0m\n'
+    for _ in $(seq 1 100); do
+      if [[ -f "$d/approve" ]]; then rm -f "$d/approve" "$d/dead-token"; touch "$d/signed-in"; exit 0; fi
+      sleep 0.1
+    done
+    exit 1 ;;
+  "exec "*)
+    printf '%s\n' "$@" > "$d/exec-args"
+    cat > "$d/exec-prompt"
+    thread="thread-$$"
+    echo "{\"type\":\"thread.started\",\"thread_id\":\"$thread\"}"
+    if [[ -f "$d/dead-token" ]]; then
+      echo '{"type":"turn.failed","error":{"message":"workspace routing discovery unauthorized (401)"}}'
+      echo "ERROR codex_login::auth::manager: Failed to refresh token: Your access token could not be refreshed. Please log out and sign in again." >&2
+      exit 1
+    fi
+    mkdir -p "$CODEX_HOME/generated_images/$thread"
+    fixture="$d/fixture.png"
+    [[ -f "$d/alpha" ]] && fixture="$d/fixture-alpha.png"
+    cp "$fixture" "$CODEX_HOME/generated_images/$thread/ig_1.png"
+    echo '{"type":"item.completed","item":{"type":"agent_message","text":"done"}}'
+    exit 0 ;;
+esac
+echo "fake codex: unexpected arguments: $*" >&2
+exit 2
