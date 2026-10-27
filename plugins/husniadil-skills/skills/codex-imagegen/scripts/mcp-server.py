@@ -316,6 +316,14 @@ async def generate_image(
         return text_result(f"generate.sh failed (exit {code}):\n{stderr.strip()[-1500:]}", error=True)
 
     data, note = preview(out)
+    if attached:
+        # Codex picks the size itself: an edit of a 1024x1024 image came back 1254x1254.
+        with Image.open(attached[0]) as source, Image.open(out) as made:
+            if source.size != made.size:
+                note += (
+                    f" The first attached image is {source.width}x{source.height}, so resize this one "
+                    "after downloading it if the original size matters."
+                )
     size_kb = round(out.stat().st_size / 1024)
     hint = os.environ.get(DOWNLOAD_HINT_ENV, "").replace("{path}", str(out))
     return CallToolResult(

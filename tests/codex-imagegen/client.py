@@ -137,6 +137,20 @@ async def main() -> None:
             )
             args = (FAKE / "exec-args").read_text().split("\n")
             check("attachment passed to codex", edit.is_error is not True and str(saved) in args, text(edit))
+            check("same size as the attachment: no size note", "first attached image is" not in text(edit), text(edit))
+
+        # An edit Codex returns at another size says so, naming the attachment's size.
+        upload = FILES / "uploads" / "a" / "small.png"
+        upload.parent.mkdir(parents=True)
+        Image.new("RGB", (64, 48), "red").save(upload)
+        resized = await client.call_tool(
+            "generate_image", {"prompt": "Edit the attached image", "images": [str(upload)]}
+        )
+        check(
+            "other size than the attachment: size note",
+            "The first attached image is 64x48" in text(resized) and "1536x1024 PNG" in text(resized),
+            text(resized),
+        )
 
         # A dead login: codex says signed in, the run fails with a 401, and a new login starts.
         (FAKE / "dead-token").touch()
