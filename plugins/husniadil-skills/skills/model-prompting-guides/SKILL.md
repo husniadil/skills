@@ -1,6 +1,6 @@
 ---
 name: model-prompting-guides
-description: Model-specific prompting rules for Claude Fable 5.1, Claude Fable 5, Claude Opus 5.5, Claude Opus 5, Claude Opus 4.8, Claude Sonnet 5.5, Claude Sonnet 5, Claude Haiku 5.5, Claude Haiku 4.5, GPT-5.6 (Sol, Terra, Luna), GPT-6 Astra, GPT-6 Sol, GPT-6 Luna, and GPT-6.1 Sol. Use every time you spawn, run, or delegate to a subagent or a new agent, before writing its prompt, and when writing or debugging a prompt, system prompt, tool policy, autonomy rule, or output contract for one of these models.
+description: Model-specific prompting rules for Claude Fable 5.1, Claude Fable 5, Claude Opus 5.5, Claude Opus 5, Claude Opus 4.8, Claude Sonnet 5.5, Claude Sonnet 5, Claude Haiku 5.5, Claude Haiku 4.5, GPT-5.6 (Sol, Terra, Luna), GPT-6 Astra, GPT-6 Sol, GPT-6 Luna, GPT-6.1 Sol, and GPT-6.1 Terra. Use every time you spawn, run, or delegate to a subagent or a new agent, before writing its prompt, and when writing or debugging a prompt, system prompt, tool policy, autonomy rule, or output contract for one of these models.
 ---
 
 # Model prompting guides
@@ -23,9 +23,10 @@ change, a delegation template, and the fix for each known failure mode.
 - GPT-6 Astra: [references/gpt-6-astra.md](references/gpt-6-astra.md)
 - GPT-6 Sol, Luna: [references/gpt-6-sol-luna.md](references/gpt-6-sol-luna.md)
 - GPT-6.1 Sol: [references/gpt-6.1-sol.md](references/gpt-6.1-sol.md)
+- GPT-6.1 Terra: [references/gpt-6.1-terra.md](references/gpt-6.1-terra.md)
 
 Mythos 5.1 uses the Fable 5.1 reference and Mythos 5 uses the Fable 5 reference. OpenAI
-publishes no guidance of their own for GPT-6 Sol, Luna, and GPT-6.1 Sol, so their references
+publishes no guidance of their own for GPT-6 Sol, Luna, GPT-6.1 Sol, and GPT-6.1 Terra, so their references
 carry its GPT-6 family guidance, written from Astra, and say so where it applies. Start
 from the delegation template, keep only the conditional blocks the task needs, and check
 the failure-mode list when a first attempt misbehaves. One file per model version: a new
