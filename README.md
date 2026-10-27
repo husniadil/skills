@@ -54,7 +54,7 @@ directory (`~/.claude/skills/`, `.claude/skills/`, `.agents/skills/`, or the equ
 | `transcribe-audio` | A file or URL to text, SRT, VTT or JSON through Groq's hosted Whisper, any length | `ffmpeg`, `ffprobe`, `python3`, `curl`, `GROQ_API_KEY` or `GROQ_BASE_URL`, and `yt-dlp` for a URL |
 | `youtube-transcript` | The captions YouTube already holds, as plain text, with the timestamped VTT kept beside it | `yt-dlp`, `deno` |
 | `leanrea` | Reverse engineers shipped apps and binaries (Electron, Mach-O, ELF, PE, Go, Rust, .NET, APK, WASM, SQLite, pcaps, firmware) with plain CLI tools, adapted from [aicodeking/leanrea](https://github.com/aicodeking/leanrea) | `rg`, `jq`, Xcode command line tools for Mach-O or binutils for ELF, `node` for Electron, and each target's own tool (`jadx`, `ghidra`, `tshark`) only when that target comes up |
-| `codex-imagegen` | Generates or edits one image per run through the Codex CLI's built-in image tool, on the ChatGPT plan Codex is signed in with, so no OpenAI API key | `codex` signed in, `jq`, and ImageMagick for checking or keying out a transparent background |
+| `codex-imagegen` | Generates or edits one image per run through the Codex CLI's built-in image tool, on the ChatGPT plan Codex is signed in with, so no OpenAI API key. `scripts/mcp-server.py` serves the same as a stdio MCP server, which saves each image under `CODEX_IMAGEGEN_FILES_DIR` and signs Codex in by device code when its login is missing or dead | `codex` signed in, `jq`, and ImageMagick for checking or keying out a transparent background. `uv` for the MCP server |
 
 A skill whose tool is missing stops and says which one and how to install it. It does
 not install anything itself.
