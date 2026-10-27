@@ -48,6 +48,10 @@ LOGIN_OUTPUT_WAIT = 20
 PREVIEW_EDGE = 768
 PREVIEW_QUALITY = 80
 KEY_COLOR = (255, 0, 255)
+# Codex's transparent output holds a solid subject at alpha 254, not 255: a flat apple
+# was 61.8% clear, 36.9% at 250 to 254 and 1.3% between (2026-10-27). Counting 254 as
+# partly transparent reported that apple as 38% see-through.
+OPAQUE_FROM = 250
 
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 LOGIN_URL = re.compile(r"https://auth\.openai\.com/\S+")
@@ -233,7 +237,7 @@ def preview(path: Path) -> tuple[str, str]:
     buffer = io.BytesIO()
     flat.save(buffer, "JPEG", quality=PREVIEW_QUALITY)
     note = f"The image below is a {flat.width}x{flat.height} JPEG preview of the {width}x{height} PNG."
-    clear, partial = counts[0], sum(counts[1:255])
+    clear, partial = counts[0], sum(counts[1:OPAQUE_FROM])
     if clear or partial:
         note += (
             f" {100 * clear / (width * height):.1f}% of its pixels are fully transparent and "

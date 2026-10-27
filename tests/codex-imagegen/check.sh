@@ -15,7 +15,8 @@ trap 'for p in $(cat "$WORK/fake/logins" 2>/dev/null); do kill "$p" 2>/dev/null;
 
 ln -s "$HERE/fake-codex" "$WORK/bin/codex"
 # Two 1536x1024 PNGs: an opaque red one, and a red one with a fully transparent square in its middle,
-# the hole --transparent punched in flat icons.
+# the hole --transparent punched in flat icons. The second is alpha 254 elsewhere, as Codex's transparent
+# output holds a solid subject.
 python3 - "$WORK/fake" <<'EOF'
 import struct, sys, zlib
 w, h = 1536, 1024
@@ -26,7 +27,7 @@ def png(path, color_type, rows):
     data += chunk(b"IDAT", zlib.compress(b"".join(b"\x00" + r for r in rows))) + chunk(b"IEND", b"")
     open(path, "wb").write(data)
 png(f"{sys.argv[1]}/fixture.png", 2, [bytes([200, 40, 40]) * w] * h)
-solid, holed = bytes([200, 40, 40, 255]) * w, bytes([200, 40, 40, 255]) * 568 + bytes(4 * 400) + bytes([200, 40, 40, 255]) * 568
+solid, holed = bytes([200, 40, 40, 254]) * w, bytes([200, 40, 40, 254]) * 568 + bytes(4 * 400) + bytes([200, 40, 40, 254]) * 568
 png(f"{sys.argv[1]}/fixture-alpha.png", 6, [holed if 312 <= y < 712 else solid for y in range(h)])
 EOF
 

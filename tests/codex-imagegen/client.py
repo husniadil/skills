@@ -116,6 +116,7 @@ async def main() -> None:
         (FAKE / "alpha").unlink()
         body = text(holed)
         check("transparent image: note gives the share", "10.2% of its pixels are fully transparent" in body, body)
+        check("transparent image: alpha 254 is not counted as partly", "and 0.0% partly" in body, body)
         check("transparent image: note names magenta", "magenta inside the subject is a hole" in body, body)
         images = [c for c in holed.content if c.type == "image"]
         if images:
