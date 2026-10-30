@@ -83,6 +83,16 @@ QUESTION = {
     ],
 }
 SECRET = {"requestId": "p-2", "requiresOpenBot": True, "questions": []}
+# An approval of one of OpenBot's own tools, as save_mcp_server asked one on OpenBot 0.54.0.
+TOOL_APPROVAL = {
+    "requestId": "r-2",
+    "kind": "permissions",
+    "command": None,
+    "cwd": None,
+    "reason": "Add the MCP server approval-form-test: https://example.invalid/mcp.",
+    "grantRoot": None,
+    "permissions": None,
+}
 
 
 class OpenBot:
@@ -139,6 +149,8 @@ class Handler(BaseHTTPRequestHandler):
             BOT.deliveries[delivery] = {"text": body["text"], "reads": 0}
             if body["text"] == "ask":
                 BOT.approvals = [APPROVAL]
+            elif body["text"] == "ask-tool":
+                BOT.approvals = [TOOL_APPROVAL]
             elif body["text"] == "question":
                 BOT.prompts = [QUESTION]
             elif body["text"] == "secret":
@@ -469,6 +481,16 @@ async def with_forms(env: dict[str, str]) -> None:
             "forms: an approval that does not wait is refused",
             gone.is_error is True and "has no approval r-9 waiting" in text(gone),
             text(gone),
+        )
+
+        await client.call_tool("send_message", {"agent": "Ada", "text": "ask-tool", "wait_seconds": 0})
+        reply.append(ElicitResult(action="decline"))
+        await client.call_tool("respond_approval", {"agent": "Ada", "request_id": "r-2"})
+        message = asked[-1].message if asked else ""
+        check(
+            "forms: an approval with no command leads with its reason",
+            message == "Allow Ada: Add the MCP server approval-form-test: https://example.invalid/mcp.",
+            message,
         )
 
         await client.call_tool("send_message", {"agent": "Ada", "text": "question", "wait_seconds": 0})

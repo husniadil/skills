@@ -531,11 +531,16 @@ class Approve(BaseModel):
 
 
 def approval_question(name: str, approval: dict[str, Any]) -> str:
-    # Claude Code shows the message on one line, so what decides it comes first.
-    command = approval.get("command") or approval.get("kind") or "a command"
-    text = f"Allow {name} to run `{command}`" + (f" in {approval['cwd']}" if approval.get("cwd") else "") + "?"
-    if approval.get("reason"):
-        text += f" Reason: {approval['reason']}"
+    # Claude Code shows the message on one line, so what decides it comes first. An approval of
+    # one of OpenBot's own tools (kind "permissions", adding an MCP server) has no command, and
+    # its reason says what it does.
+    command = approval.get("command")
+    if command:
+        text = f"Allow {name} to run `{command}`" + (f" in {approval['cwd']}" if approval.get("cwd") else "") + "?"
+        if approval.get("reason"):
+            text += f" Reason: {approval['reason']}"
+    else:
+        text = f"Allow {name}: {approval.get('reason') or approval.get('kind') or 'an action'}"
     if approval.get("permissions"):
         text += f" Permissions: {json.dumps(approval['permissions'])}"
     if approval.get("grantRoot"):
