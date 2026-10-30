@@ -64,7 +64,9 @@ LOGIN_MINUTES = re.compile(r"expires in (\d+) minutes")
 # What a dead login looked like with an expired access token and a refresh token OpenAI
 # refused: the turn failed with "workspace routing discovery unauthorized (401)", and stderr
 # repeated "Your access token could not be refreshed. Please log out and sign in again."
-AUTH_FAILURE = re.compile(r"unauthorized \(401\)|could not be refreshed|sign(?:ing)? in again|not logged in", re.I)
+AUTH_FAILURE = re.compile(
+    r"unauthorized \(401\)|could not be refreshed|sign(?:ing)? in again|not logged in", re.IGNORECASE
+)
 
 mcp = MCPServer(
     "codex-imagegen",
@@ -129,7 +131,11 @@ async def start_login() -> dict:
     exit_file = STATE_DIR / "login.exit"
     exit_file.unlink(missing_ok=True)
     with log_file.open("w") as log:
-        proc = subprocess.Popen(
+        # Popen rather than asyncio's subprocess, whose transport kills a child still running
+        # when it closes, and the login has to outlive this server. A thread keeps the fork off
+        # the event loop.
+        proc = await asyncio.to_thread(
+            subprocess.Popen,
             ["sh", "-c", 'codex login --device-auth; echo $? > "$1"', "sh", str(exit_file)],
             stdin=subprocess.DEVNULL,
             stdout=log,
