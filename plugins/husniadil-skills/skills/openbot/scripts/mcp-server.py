@@ -156,6 +156,7 @@ class Tasks(Extension):
         self.sweep()
         self.held[task.id] = task
         runner.add_done_callback(lambda ended: self.settle(task, ended))
+        print(f"mcp-server.py: {params.name} became task {task.id}", file=sys.stderr)
         return {"resultType": "task", **self.wire(task)}
 
     def settle(self, task: Task, ended: asyncio.Task[Any]) -> None:
@@ -174,6 +175,10 @@ class Tasks(Extension):
                 if isinstance(result, BaseModel)
                 else result
             )
+        print(
+            f"mcp-server.py: task {task.id} {task.status} after {task.updated - task.started:.0f} s",
+            file=sys.stderr,
+        )
 
     def sweep(self) -> None:
         now = time.time()
