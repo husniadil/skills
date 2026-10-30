@@ -115,7 +115,8 @@ class Handler(BaseHTTPRequestHandler):
             state = {"id": rest[1], "status": "running", "turnId": rest[1], "error": None, "answer": None}
             if held["text"] == "fail":
                 state.update(status="failed", error="provider down")
-            elif held["text"] not in ("slow", "ask") and held["reads"] > 2:
+            # "later" ends after about 6 s of reads, past the 5 s a call has before it is a task.
+            elif held["text"] not in ("slow", "ask") and held["reads"] > (6 if held["text"] == "later" else 2):
                 state.update(status="completed", answer=f"Echo: {held['text']}")
             return self.answer(200, state)
         if rest == ["pending"] and method == "GET":
@@ -127,6 +128,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.answer(409, {"error": "The request expired."})
             return self.answer(200, {"ok": True})
         if rest[:1] == ["approvals"] and rest[2:] == ["respond"] and method == "POST":
+            # The approval is answered, so the agent no longer waits on a person.
+            for held in BOT.deliveries.values():
+                if held["text"] == "ask":
+                    held["text"] = "asked"
             return self.answer(200, {"ok": True})
         if rest == ["settings"] and method == "POST":
             return self.answer(200, {"id": parts[2], "name": "Ada", **body})
@@ -353,6 +358,110 @@ def free_port() -> int:
         return s.getsockname()[1]
 
 
+TASKS = "io.modelcontextprotocol/tasks"
+RPC_IDS = iter(range(100, 10_000))
+
+
+async def rpc(
+    http: httpx2.AsyncClient, url: str, method: str, params: dict, *, name: str | None = None, tasks: bool = True
+) -> dict:
+    """One 2026-07-28 request, as the SDK's client sends it, from a client that takes tasks or not."""
+    headers = {
+        "Accept": "application/json, text/event-stream",
+        "Content-Type": "application/json",
+        "MCP-Protocol-Version": "2026-07-28",
+        "Mcp-Method": method,
+    }
+    if name:
+        headers["Mcp-Name"] = name
+    meta = {
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+        "io.modelcontextprotocol/clientInfo": {"name": "check", "version": "1"},
+        "io.modelcontextprotocol/clientCapabilities": {"extensions": {TASKS: {}}} if tasks else {},
+    }
+    body = {"jsonrpc": "2.0", "id": next(RPC_IDS), "method": method, "params": {**params, "_meta": meta}}
+    answer = await http.post(url, json=body, headers=headers, timeout=60)
+    lines = [line[6:] for line in answer.text.splitlines() if line.startswith("data: ")]
+    messages = [json.loads(line) for line in lines] if lines else [json.loads(answer.text)]
+    return next(m for m in messages if m.get("id") == body["id"])
+
+
+async def as_tasks(http: httpx2.AsyncClient, url: str) -> None:
+    found = await rpc(http, url, "server/discover", {})
+    extensions = found.get("result", {}).get("capabilities", {}).get("extensions") or {}
+    check("tasks: server/discover advertises the extension", TASKS in extensions, found)
+
+    quick = await rpc(http, url, "tools/call", {"name": "list_agents", "arguments": {}}, name="list_agents")
+    got = quick.get("result", {})
+    check("tasks: a quick call is answered as itself", got.get("resultType") == "complete", quick)
+
+    started = time.monotonic()
+    later = await rpc(
+        http,
+        url,
+        "tools/call",
+        {"name": "send_message", "arguments": {"agent": "Ada", "text": "later"}},
+        name="send_message",
+    )
+    took = time.monotonic() - started
+    task = later.get("result", {})
+    check(
+        "tasks: a call still running after 5 s is a task",
+        task.get("resultType") == "task" and task.get("status") == "working" and task.get("pollIntervalMs") == 2000,
+        later,
+    )
+    check("tasks: the task comes at about 5 s", 4.5 < took < 8, f"{took:.1f} s")
+    working = await rpc(http, url, "tasks/get", {"taskId": task.get("taskId", "")})
+    note = working.get("result", {}).get("statusMessage", "")
+    check("tasks: a working task names its delivery", "Delivery d-" in note and "is running" in note, working)
+    for _ in range(40):
+        ended = await rpc(http, url, "tasks/get", {"taskId": task.get("taskId", "")})
+        if ended.get("result", {}).get("status") != "working":
+            break
+        await asyncio.sleep(0.5)
+    result = ended.get("result", {})
+    answer = ((result.get("result") or {}).get("structuredContent") or {}).get("answer")
+    check(
+        "tasks: tasks/get hands back the call's result",
+        result.get("status") == "completed" and answer == "Echo: later",
+        ended,
+    )
+
+    slow = await rpc(
+        http,
+        url,
+        "tools/call",
+        {"name": "send_message", "arguments": {"agent": "Ada", "text": "slow"}},
+        name="send_message",
+    )
+    slow_id = slow.get("result", {}).get("taskId", "")
+    stopped = await rpc(http, url, "tasks/cancel", {"taskId": slow_id})
+    await asyncio.sleep(0.5)
+    after = await rpc(http, url, "tasks/get", {"taskId": slow_id})
+    check(
+        "tasks: tasks/cancel ends the task",
+        "error" not in stopped and after.get("result", {}).get("status") == "cancelled",
+        [stopped, after],
+    )
+    unknown = await rpc(http, url, "tasks/get", {"taskId": "openbot-nope"})
+    check("tasks: an unknown task is refused", unknown.get("error", {}).get("code") == -32602, unknown)
+
+    plain = await rpc(
+        http,
+        url,
+        "tools/call",
+        {"name": "send_message", "arguments": {"agent": "Ada", "text": "later"}},
+        name="send_message",
+        tasks=False,
+    )
+    got = plain.get("result", {})
+    check(
+        "tasks: a client without the extension waits for the answer",
+        got.get("resultType") == "complete" and (got.get("structuredContent") or {}).get("answer") == "Echo: later",
+        plain,
+    )
+
+
 async def over_http() -> None:
     token_file = WORK / "mcp-token"
     token = "t" * 40
@@ -402,6 +511,7 @@ async def over_http() -> None:
                     len((listed.structured_content or {}).get("agents", [])) == 3,
                     text(listed),
                 )
+            await as_tasks(http, url)
     finally:
         proc.terminate()
         proc.wait(10)

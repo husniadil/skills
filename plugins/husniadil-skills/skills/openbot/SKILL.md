@@ -67,6 +67,12 @@ command that reads stdin, so give each `curl` in it `</dev/null`.
 `answer_prompt`, `respond_approval`, `set_model`, `new_chat` and `run_routine`. It needs `uv`
 and `docker` on the host.
 
+A client that takes the MCP tasks extension (`io.modelcontextprotocol/tasks`), such as
+Claude Code, gets a call still running after 5 s as a task, which it polls with `tasks/get`.
+Its wait goes up to 900 s, since a task holds no request open. A task lives in the server's
+memory: a restart forgets it, while the agent's turn goes on in OpenBot and `get_delivery`
+reads it.
+
 ```bash
 OPENBOT_CONTAINER=openbot-<name> uv run --script ${CLAUDE_SKILL_DIR}/scripts/mcp-server.py
 ```
