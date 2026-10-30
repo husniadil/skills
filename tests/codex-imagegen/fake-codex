@@ -2,7 +2,8 @@
 # A stand-in for codex, for the MCP server checks. FAKE_CODEX_DIR holds its switches:
 # signed-in (login status succeeds), approve (the device login completes), dead-token (exec
 # fails the way an expired login did on Codex 0.162.1), alpha (exec "makes" fixture-alpha.png,
-# which has a hole, rather than fixture.png).
+# which has a hole, rather than fixture.png), slow (exec writes its pid to exec-pid, then waits
+# 60 s before it makes anything).
 set -uo pipefail
 d=$FAKE_CODEX_DIR
 
@@ -25,6 +26,7 @@ case "$1 ${2:-}" in
     cat > "$d/exec-prompt"
     thread="thread-$$"
     echo "{\"type\":\"thread.started\",\"thread_id\":\"$thread\"}"
+    if [[ -f "$d/slow" ]]; then echo "$$" > "$d/exec-pid"; sleep 60; fi
     if [[ -f "$d/dead-token" ]]; then
       echo '{"type":"turn.failed","error":{"message":"workspace routing discovery unauthorized (401)"}}'
       echo "ERROR codex_login::auth::manager: Failed to refresh token: Your access token could not be refreshed. Please log out and sign in again." >&2

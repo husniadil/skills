@@ -153,6 +153,37 @@ async def main() -> None:
             text(resized),
         )
 
+        # A call the client cancels ends Codex, and generate.sh removes its work directory.
+        (FAKE / "slow").touch()
+        call = asyncio.create_task(client.call_tool("generate_image", {"prompt": "a slow red square"}))
+        pid = None
+        for _ in range(100):
+            if (FAKE / "exec-pid").exists():
+                pid = int((FAKE / "exec-pid").read_text())
+                break
+            await asyncio.sleep(0.1)
+        check("cancelled call: codex started", pid is not None)
+        args = (FAKE / "exec-args").read_text().split("\n")
+        work = Path(args[args.index("-C") + 1]).parent if "-C" in args else None
+        call.cancel()
+        try:
+            await call
+        except asyncio.CancelledError:
+            pass
+        (FAKE / "slow").unlink()
+        gone = False
+        for _ in range(50):
+            try:
+                os.kill(pid or 0, 0)
+            except ProcessLookupError:
+                gone = True
+                break
+            await asyncio.sleep(0.1)
+        check("cancelled call: codex stopped within 5 s", pid is not None and gone, f"pid {pid}")
+        check("cancelled call: work directory removed", work is not None and not work.exists(), str(work))
+        after = await client.call_tool("generate_image", {"prompt": "A plain red square, no text"})
+        check("cancelled call: the next call still works", after.is_error is not True, text(after))
+
         # A dead login: codex says signed in, the run fails with a 401, and a new login starts.
         (FAKE / "dead-token").touch()
         dead = await client.call_tool("generate_image", {"prompt": "a red square"})

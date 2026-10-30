@@ -44,6 +44,9 @@ STATE_DIR = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state
 
 # A run took 31 to 53 s in 8 of 9 measured runs, and one edit took 133 (2026-10-23).
 GENERATE_TIMEOUT = 280
+# How long a cancelled run gets to end on SIGTERM, which lets generate.sh remove its work
+# directory, before what is left of it is killed.
+CANCEL_GRACE = 5
 LOGIN_OUTPUT_WAIT = 20
 PREVIEW_EDGE = 768
 PREVIEW_QUALITY = 80
@@ -264,7 +267,30 @@ async def run_generate(args: list[str], prompt: str) -> tuple[int, str]:
         os.killpg(proc.pid, signal.SIGKILL)
         await proc.wait()
         return -1, f"generate.sh ran past {GENERATE_TIMEOUT} s and was stopped."
+    except asyncio.CancelledError:
+        # The client cancelled the call (notifications/cancelled, which the SDK applies by
+        # cancelling this handler). generate.sh runs in a session of its own, so without this
+        # it and Codex ran on to the end and made an image nobody would see (measured
+        # 2026-10-30). The handler is being cancelled, so nothing here may await.
+        stop_cancelled(proc.pid)
+        raise
     return proc.returncode or 0, stderr.decode(errors="replace")
+
+
+def stop_cancelled(pgid: int) -> None:
+    """End a cancelled run's process group: SIGTERM now, SIGKILL for what is left after the grace."""
+    try:
+        os.killpg(pgid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    asyncio.get_running_loop().call_later(CANCEL_GRACE, kill_group, pgid)
+
+
+def kill_group(pgid: int) -> None:
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
 
 
 @mcp.tool()
