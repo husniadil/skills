@@ -530,6 +530,12 @@ class Approve(BaseModel):
     """No fields: the form's own Accept and Decline are the answer."""
 
 
+def one_line(text: str) -> str:
+    # Claude Code shows a form's message from its first line and hides the rest, and draws a
+    # line break in a field's description as a replacement character (measured 2026-10-30).
+    return " ".join(text.split())
+
+
 def approval_question(name: str, approval: dict[str, Any]) -> str:
     # Claude Code shows the message on one line, so what decides it comes first. An approval of
     # one of OpenBot's own tools (kind "permissions", adding an MCP server) has no command, and
@@ -545,7 +551,7 @@ def approval_question(name: str, approval: dict[str, Any]) -> str:
         text += f" Permissions: {json.dumps(approval['permissions'])}"
     if approval.get("grantRoot"):
         text += f" Grants root: {approval['grantRoot']}"
-    return text
+    return one_line(text)
 
 
 async def ask_approval(agent: str, request_id: str, ctx: Context) -> Elicit[Approve] | None:
@@ -557,19 +563,25 @@ async def ask_approval(agent: str, request_id: str, ctx: Context) -> Elicit[Appr
 
 
 def answers_form(questions: list[dict[str, Any]]) -> type[BaseModel]:
-    """A form with a field per question: its options to pick from, or text when it has none."""
+    """A form with a field per question: its options to pick from, or text when it has none.
+
+    One question is asked in the form's message, so its field carries no description. Several
+    each carry their own, unless it only repeats the field's title.
+    """
     fields: dict[str, Any] = {}
     for n, question in enumerate(questions):
         labels = tuple(o["label"] for o in question.get("options") or [] if o.get("label"))
         kind: Any = str
         if labels:
             kind = list[Literal[labels]] if question.get("multiSelect") is True else Literal[labels]
+        title = one_line(question.get("header") or question["id"])
+        said = one_line(question.get("question") or "")
         fields[f"q{n}"] = (
             kind,
             Field(
                 alias=question["id"],
-                title=question.get("header") or question["id"],
-                description=question.get("question"),
+                title=title,
+                description=said if len(questions) > 1 and said and said != title else None,
             ),
         )
     return create_model("Answers", **fields)
@@ -586,8 +598,12 @@ async def ask_prompt(agent: str, request_id: str, ctx: Context) -> Elicit[BaseMo
             f"{found['name']}'s question {request_id} is answered in OpenBot itself: it asks for a secret, "
             "or its wording is kept from this API."
         )
-    asked = " ".join(q.get("question") or q.get("header") or q["id"] for q in questions)
-    return Elicit(f"{found['name']} asks: {asked}", answers_form(questions))
+    if len(questions) == 1:
+        only = questions[0]
+        message = f"{found['name']} asks: {only.get('question') or only.get('header') or only['id']}"
+    else:
+        message = f"{found['name']} asks {len(questions)} questions."
+    return Elicit(one_line(message), answers_form(questions))
 
 
 def answers_of(form: BaseModel) -> dict[str, list[str]]:

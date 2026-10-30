@@ -93,6 +93,20 @@ TOOL_APPROVAL = {
     "grantRoot": None,
     "permissions": None,
 }
+# A pick-several question as the Local scripts API handed one over on OpenBot 0.54.0: no
+# options, and the choices written into the question on lines of their own.
+FLAT_QUESTION = {
+    "requestId": "p-3",
+    "requiresOpenBot": False,
+    "questions": [
+        {
+            "id": "choice",
+            "header": "Which platforms should the test cover?",
+            "question": "Which platforms should the test cover?\n\n- Web\n- iOS\n- Android",
+            "options": None,
+        }
+    ],
+}
 
 
 class OpenBot:
@@ -151,6 +165,8 @@ class Handler(BaseHTTPRequestHandler):
                 BOT.approvals = [APPROVAL]
             elif body["text"] == "ask-tool":
                 BOT.approvals = [TOOL_APPROVAL]
+            elif body["text"] == "flat-question":
+                BOT.prompts = [FLAT_QUESTION]
             elif body["text"] == "question":
                 BOT.prompts = [QUESTION]
             elif body["text"] == "secret":
@@ -513,6 +529,31 @@ async def with_forms(env: dict[str, str]) -> None:
             and fields.get("targets", {}).get("items", {}).get("enum") == ["web", "ios"]
             and fields.get("note", {}).get("type") == "string",
             fields,
+        )
+
+        check(
+            "forms: several questions are counted in the message, each in its own field",
+            asked[-1].message == "Ada asks 3 questions."
+            and fields.get("build", {}).get("description") == "Which build?",
+            [asked[-1].message if asked else "", fields],
+        )
+
+        await client.call_tool("send_message", {"agent": "Ada", "text": "flat-question", "wait_seconds": 0})
+        reply.append(ElicitResult(action="accept", content={"choice": "Web, iOS"}))
+        await client.call_tool("answer_prompt", {"agent": "Ada", "request_id": "p-3"})
+        message = asked[-1].message if asked else ""
+        field = asked[-1].requested_schema.get("properties", {}).get("choice", {}) if asked else {}
+        check(
+            "forms: one question's lines are folded into the message, and its field repeats nothing",
+            message == "Ada asks: Which platforms should the test cover? - Web - iOS - Android"
+            and "description" not in field
+            and field.get("type") == "string",
+            [message, field],
+        )
+        check(
+            "forms: a typed answer is sent as it was typed",
+            last("POST", "/prompts/")["body"] == {"answers": {"choice": ["Web, iOS"]}},
+            last("POST", "/prompts/"),
         )
 
         await client.call_tool("send_message", {"agent": "Ada", "text": "secret", "wait_seconds": 0})
