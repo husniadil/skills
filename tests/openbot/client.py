@@ -26,6 +26,7 @@ import httpx2
 from mcp import Client
 from mcp.client.stdio import StdioServerParameters
 from mcp.client.streamable_http import streamable_http_client
+from mcp_types import ElicitRequestParams, ElicitResult
 
 SERVER = Path(sys.argv[1])
 WORK = Path(sys.argv[2])
@@ -54,12 +55,48 @@ def text(result) -> str:
     return " ".join(c.text for c in result.content if c.type == "text")
 
 
+APPROVAL = {
+    "requestId": "r-1",
+    "kind": "command",
+    "command": "rm -rf build",
+    "cwd": "/data/work",
+    "reason": "clean the build",
+}
+QUESTION = {
+    "requestId": "p-1",
+    "requiresOpenBot": False,
+    "questions": [
+        {
+            "id": "build",
+            "header": "Build",
+            "question": "Which build?",
+            "options": [{"label": "Debug"}, {"label": "Release"}],
+        },
+        {
+            "id": "targets",
+            "header": "Targets",
+            "question": "Which targets?",
+            "multiSelect": True,
+            "options": [{"label": "web"}, {"label": "ios"}],
+        },
+        {"id": "note", "header": "Note", "question": "Anything else?", "options": []},
+    ],
+}
+SECRET = {"requestId": "p-2", "requiresOpenBot": True, "questions": []}
+
+
 class OpenBot:
-    """What the stand-in has been asked, and the deliveries it holds."""
+    """What the stand-in has been asked, the deliveries it holds, and what waits on a person.
+
+    A message "ask" makes the agent wait for an approval, "question" for an answer to
+    QUESTION, and "secret" for one only OpenBot can take. An answer clears what it answered.
+    """
 
     def __init__(self) -> None:
         self.requests: list[dict] = []
         self.deliveries: dict[str, dict] = {}
+        self.approvals: list[dict] = []
+        self.prompts: list[dict] = []
 
 
 BOT = OpenBot()
@@ -100,6 +137,12 @@ class Handler(BaseHTTPRequestHandler):
         if rest == ["messages"] and method == "POST":
             delivery = f"d-{len(BOT.deliveries) + 1}"
             BOT.deliveries[delivery] = {"text": body["text"], "reads": 0}
+            if body["text"] == "ask":
+                BOT.approvals = [APPROVAL]
+            elif body["text"] == "question":
+                BOT.prompts = [QUESTION]
+            elif body["text"] == "secret":
+                BOT.prompts = [SECRET]
             return self.answer(
                 202,
                 {
@@ -116,22 +159,20 @@ class Handler(BaseHTTPRequestHandler):
             if held["text"] == "fail":
                 state.update(status="failed", error="provider down")
             # "later" ends after about 6 s of reads, past the 5 s a call has before it is a task.
-            elif held["text"] not in ("slow", "ask") and held["reads"] > (6 if held["text"] == "later" else 2):
+            elif held["text"] not in ("slow", "ask", "question", "secret") and held["reads"] > (
+                6 if held["text"] == "later" else 2
+            ):
                 state.update(status="completed", answer=f"Echo: {held['text']}")
             return self.answer(200, state)
         if rest == ["pending"] and method == "GET":
-            asking = any(d["text"] == "ask" for d in BOT.deliveries.values())
-            approvals = [{"requestId": "r-1", "kind": "command", "command": "rm -rf build"}] if asking else []
-            return self.answer(200, {"prompts": [], "approvals": approvals, "browserTakeovers": []})
+            return self.answer(200, {"prompts": BOT.prompts, "approvals": BOT.approvals, "browserTakeovers": []})
         if rest[:1] == ["prompts"] and rest[2:] == ["answer"] and method == "POST":
             if rest[1] == "expired":
                 return self.answer(409, {"error": "The request expired."})
+            BOT.prompts = [p for p in BOT.prompts if p["requestId"] != rest[1]]
             return self.answer(200, {"ok": True})
         if rest[:1] == ["approvals"] and rest[2:] == ["respond"] and method == "POST":
-            # The approval is answered, so the agent no longer waits on a person.
-            for held in BOT.deliveries.values():
-                if held["text"] == "ask":
-                    held["text"] = "asked"
+            BOT.approvals = [a for a in BOT.approvals if a["requestId"] != rest[1]]
             return self.answer(200, {"ok": True})
         if rest == ["settings"] and method == "POST":
             return self.answer(200, {"id": parts[2], "name": "Ada", **body})
@@ -187,6 +228,16 @@ async def over_stdio() -> None:
         )
         check("list_agents is read-only", tools["list_agents"].annotations.read_only_hint is True)
         check("respond_approval is destructive", tools["respond_approval"].annotations.destructive_hint is True)
+        shown = {name: set(tools[name].input_schema["properties"]) for name in ("respond_approval", "answer_prompt")}
+        check(
+            "the form's outcome is no argument a model passes",
+            shown
+            == {
+                "respond_approval": {"agent", "request_id", "decision"},
+                "answer_prompt": {"agent", "request_id", "answers"},
+            },
+            shown,
+        )
 
         listed = await client.call_tool("list_agents", {})
         check(
@@ -255,8 +306,19 @@ async def over_stdio() -> None:
             accepted.is_error is not True and posted["body"] == {"decision": "accept"},
             posted,
         )
+        check(
+            "without forms the caller's decision is sent",
+            (accepted.structured_content or {}).get("decided_by") == "caller",
+            text(accepted),
+        )
         odd = await client.call_tool("respond_approval", {"agent": "Ada", "request_id": "r-1", "decision": "maybe"})
         check("respond_approval takes accept or decline only", odd.is_error is True, text(odd))
+        bare = await client.call_tool("respond_approval", {"agent": "Ada", "request_id": "r-1"})
+        check(
+            "without forms a decision is required",
+            bare.is_error is True and "Pass the person's decision" in text(bare),
+            text(bare),
+        )
 
         expired = await client.call_tool(
             "answer_prompt", {"agent": "Ada", "request_id": "expired", "answers": {"build": ["Debug"]}}
@@ -335,6 +397,8 @@ async def over_stdio() -> None:
             text(closed),
         )
 
+    await with_forms(env)
+
     async with Client(stdio({**os.environ, "OPENBOT_CONTAINER": "openbot-gone"})) as client:
         gone = await client.call_tool("list_agents", {})
         check(
@@ -352,6 +416,93 @@ async def over_stdio() -> None:
     )
 
 
+async def with_forms(env: dict[str, str]) -> None:
+    """A client that shows forms: the person is asked, and what they chose is what is sent."""
+    asked: list[ElicitRequestParams] = []
+    reply: list[ElicitResult] = []
+
+    async def person(_: object, params: ElicitRequestParams) -> ElicitResult:
+        asked.append(params)
+        return reply.pop(0)
+
+    def posts(contains: str) -> int:
+        return sum(1 for r in BOT.requests if r["method"] == "POST" and contains in r["path"])
+
+    async with Client(stdio(env), elicitation_callback=person) as client:
+        await client.call_tool("send_message", {"agent": "Ada", "text": "ask", "wait_seconds": 0})
+        reply.append(ElicitResult(action="accept", content={}))
+        accepted = await client.call_tool(
+            "respond_approval", {"agent": "Ada", "request_id": "r-1", "decision": "decline"}
+        )
+        posted = last("POST", "/approvals/")
+        check(
+            "forms: the person's accept is sent, whatever the model passed",
+            posted["body"] == {"decision": "accept"}
+            and (accepted.structured_content or {}).get("decided_by") == "person",
+            [posted, text(accepted)],
+        )
+        message = asked[-1].message if asked else ""
+        check(
+            "forms: the form names the command, where and why",
+            "`rm -rf build`" in message and "/data/work" in message and "clean the build" in message,
+            message,
+        )
+
+        await client.call_tool("send_message", {"agent": "Ada", "text": "ask", "wait_seconds": 0})
+        reply.append(ElicitResult(action="decline"))
+        await client.call_tool("respond_approval", {"agent": "Ada", "request_id": "r-1"})
+        check("forms: the person's decline is sent", last("POST", "/approvals/")["body"] == {"decision": "decline"})
+
+        await client.call_tool("send_message", {"agent": "Ada", "text": "ask", "wait_seconds": 0})
+        before = posts("/approvals/")
+        reply.append(ElicitResult(action="cancel"))
+        closed = await client.call_tool("respond_approval", {"agent": "Ada", "request_id": "r-1"})
+        check(
+            "forms: a closed form sends nothing and says the approval waits",
+            posts("/approvals/") == before and (closed.structured_content or {}).get("sent") is False,
+            text(closed),
+        )
+        BOT.approvals = []
+
+        gone = await client.call_tool("respond_approval", {"agent": "Ada", "request_id": "r-9"})
+        check(
+            "forms: an approval that does not wait is refused",
+            gone.is_error is True and "has no approval r-9 waiting" in text(gone),
+            text(gone),
+        )
+
+        await client.call_tool("send_message", {"agent": "Ada", "text": "question", "wait_seconds": 0})
+        reply.append(
+            ElicitResult(action="accept", content={"build": "Release", "targets": ["web", "ios"], "note": "ship it"})
+        )
+        answered = await client.call_tool("answer_prompt", {"agent": "Ada", "request_id": "p-1"})
+        posted = last("POST", "/prompts/")
+        check(
+            "forms: the person's answers are sent as lists",
+            posted["body"] == {"answers": {"build": ["Release"], "targets": ["web", "ios"], "note": ["ship it"]}}
+            and (answered.structured_content or {}).get("answered_by") == "person",
+            [posted, text(answered)],
+        )
+        fields = asked[-1].requested_schema.get("properties", {}) if asked else {}
+        check(
+            "forms: a choice, a multiple choice and a text field",
+            fields.get("build", {}).get("enum") == ["Debug", "Release"]
+            and fields.get("targets", {}).get("type") == "array"
+            and fields.get("targets", {}).get("items", {}).get("enum") == ["web", "ios"]
+            and fields.get("note", {}).get("type") == "string",
+            fields,
+        )
+
+        await client.call_tool("send_message", {"agent": "Ada", "text": "secret", "wait_seconds": 0})
+        secret = await client.call_tool("answer_prompt", {"agent": "Ada", "request_id": "p-2"})
+        check(
+            "forms: a secret question is left to OpenBot",
+            secret.is_error is True and "answered in OpenBot itself" in text(secret),
+            text(secret),
+        )
+        BOT.prompts = []
+
+
 def free_port() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -363,9 +514,17 @@ RPC_IDS = iter(range(100, 10_000))
 
 
 async def rpc(
-    http: httpx2.AsyncClient, url: str, method: str, params: dict, *, name: str | None = None, tasks: bool = True
+    http: httpx2.AsyncClient,
+    url: str,
+    method: str,
+    params: dict,
+    *,
+    name: str | None = None,
+    tasks: bool = True,
+    forms: bool = False,
 ) -> dict:
-    """One 2026-07-28 request, as the SDK's client sends it, from a client that takes tasks or not."""
+    """One 2026-07-28 request, as the SDK's client sends it, from a client that takes tasks or
+    shows forms or neither."""
     headers = {
         "Accept": "application/json, text/event-stream",
         "Content-Type": "application/json",
@@ -377,13 +536,64 @@ async def rpc(
     meta = {
         "io.modelcontextprotocol/protocolVersion": "2026-07-28",
         "io.modelcontextprotocol/clientInfo": {"name": "check", "version": "1"},
-        "io.modelcontextprotocol/clientCapabilities": {"extensions": {TASKS: {}}} if tasks else {},
+        "io.modelcontextprotocol/clientCapabilities": {
+            **({"extensions": {TASKS: {}}} if tasks else {}),
+            **({"elicitation": {"form": {}}} if forms else {}),
+        },
     }
     body = {"jsonrpc": "2.0", "id": next(RPC_IDS), "method": method, "params": {**params, "_meta": meta}}
     answer = await http.post(url, json=body, headers=headers, timeout=60)
     lines = [line[6:] for line in answer.text.splitlines() if line.startswith("data: ")]
     messages = [json.loads(line) for line in lines] if lines else [json.loads(answer.text)]
     return next(m for m in messages if m.get("id") == body["id"])
+
+
+async def as_forms(http: httpx2.AsyncClient, url: str) -> None:
+    """A form over stateless HTTP: the call answers input_required, and the client makes it
+    again with the person's answer and the state it was handed."""
+    await rpc(
+        http,
+        url,
+        "tools/call",
+        {"name": "send_message", "arguments": {"agent": "Ada", "text": "ask", "wait_seconds": 0}},
+        name="send_message",
+    )
+    arguments = {"agent": "Ada", "request_id": "r-1"}
+    first = await rpc(
+        http,
+        url,
+        "tools/call",
+        {"name": "respond_approval", "arguments": arguments},
+        name="respond_approval",
+        forms=True,
+    )
+    got = first.get("result", {})
+    requests = got.get("inputRequests") or {}
+    check(
+        "forms over HTTP: the first round asks",
+        got.get("resultType") == "input_required" and len(requests) == 1 and bool(got.get("requestState")),
+        first,
+    )
+    second = await rpc(
+        http,
+        url,
+        "tools/call",
+        {
+            "name": "respond_approval",
+            "arguments": arguments,
+            "inputResponses": {key: {"action": "accept", "content": {}} for key in requests},
+            "requestState": got.get("requestState"),
+        },
+        name="respond_approval",
+        forms=True,
+    )
+    done = second.get("result", {})
+    check(
+        "forms over HTTP: the second round sends the person's answer",
+        (done.get("structuredContent") or {}).get("decided_by") == "person"
+        and last("POST", "/approvals/")["body"] == {"decision": "accept"},
+        second,
+    )
 
 
 async def as_tasks(http: httpx2.AsyncClient, url: str) -> None:
@@ -512,6 +722,7 @@ async def over_http() -> None:
                     text(listed),
                 )
             await as_tasks(http, url)
+            await as_forms(http, url)
     finally:
         proc.terminate()
         proc.wait(10)

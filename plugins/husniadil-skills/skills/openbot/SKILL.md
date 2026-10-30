@@ -73,6 +73,11 @@ Its wait goes up to 900 s, since a task holds no request open. A task lives in t
 memory: a restart forgets it, while the agent's turn goes on in OpenBot and `get_delivery`
 reads it.
 
+A client that shows forms on the 2026-07-28 revision is asked by the server itself in
+`respond_approval` and `answer_prompt`: a form names the command, where and why, or holds a
+field per question, and what the person chose is what is sent, whatever the model passed. A
+client without forms passes the person's answer as before.
+
 ```bash
 OPENBOT_CONTAINER=openbot-<name> uv run --script ${CLAUDE_SKILL_DIR}/scripts/mcp-server.py
 ```
