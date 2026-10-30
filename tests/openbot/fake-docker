@@ -1,0 +1,17 @@
+#!/bin/sh
+# A stand-in for `docker exec -i <container> <command...>`: runs the command here, with HOME at
+# $FAKE_DOCKER_DIR/home, as the container's own user would with HOME=/data. Only the container
+# named $FAKE_DOCKER_CONTAINER exists. Each call's arguments are appended to $FAKE_DOCKER_DIR/calls,
+# one line per call.
+[ "$1" = exec ] || { echo "fake-docker: only exec is faked" >&2; exit 2; }
+shift
+[ "$1" = -i ] && shift
+name=$1
+shift
+printf '%s' "$name $*" | tr '\n' ' ' >> "$FAKE_DOCKER_DIR/calls"
+echo >> "$FAKE_DOCKER_DIR/calls"
+if [ "$name" != "$FAKE_DOCKER_CONTAINER" ]; then
+    echo "Error response from daemon: No such container: $name" >&2
+    exit 1
+fi
+HOME="$FAKE_DOCKER_DIR/home" exec "$@"
