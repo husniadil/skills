@@ -11,6 +11,7 @@ import asyncio
 import base64
 import io
 import os
+import signal
 import sys
 import time
 from pathlib import Path
@@ -198,6 +199,34 @@ async def main() -> None:
     async with Client(server(bare)) as client:
         result = await client.call_tool("generate_image", {"prompt": "a red square"})
         check("no files dir: error names the variable", "CODEX_IMAGEGEN_FILES_DIR" in text(result), text(result))
+
+    # A run past its timeout ends Codex, and generate.sh removes its work directory. The login the
+    # dead token started is ended first, since a call waits on a login in flight.
+    for login_pid in (FAKE / "logins").read_text().split():
+        try:
+            os.kill(int(login_pid), signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+    (FAKE / "dead-token").unlink(missing_ok=True)
+    (FAKE / "exec-pid").unlink(missing_ok=True)
+    (FAKE / "slow").touch()
+    async with Client(server({**env, "CODEX_IMAGEGEN_TIMEOUT": "2"})) as client:
+        late = await client.call_tool("generate_image", {"prompt": "a slow blue square"})
+    (FAKE / "slow").unlink()
+    check("timed-out call: says it was stopped", "ran past 2 s and was stopped" in text(late), text(late))
+    pid = int((FAKE / "exec-pid").read_text()) if (FAKE / "exec-pid").exists() else None
+    args = (FAKE / "exec-args").read_text().split("\n")
+    work = Path(args[args.index("-C") + 1]).parent if "-C" in args else None
+    gone = False
+    for _ in range(50):
+        try:
+            os.kill(pid or 0, 0)
+        except ProcessLookupError:
+            gone = True
+            break
+        await asyncio.sleep(0.1)
+    check("timed-out call: codex stopped", pid is not None and gone, f"pid {pid}")
+    check("timed-out call: work directory removed", work is not None and not work.exists(), str(work))
 
 
 asyncio.run(main())

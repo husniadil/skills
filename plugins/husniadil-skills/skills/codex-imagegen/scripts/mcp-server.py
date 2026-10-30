@@ -43,10 +43,11 @@ DOWNLOAD_HINT_ENV = "CODEX_IMAGEGEN_DOWNLOAD_HINT"
 STATE_DIR = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "codex-imagegen-mcp"
 
 # A run took 31 to 53 s in 8 of 9 measured runs, and one edit took 133 (2026-10-23).
-GENERATE_TIMEOUT = 280
-# How long a cancelled run gets to end on SIGTERM, which lets generate.sh remove its work
-# directory, before what is left of it is killed.
-CANCEL_GRACE = 5
+# CODEX_IMAGEGEN_TIMEOUT overrides it, as the checks do.
+GENERATE_TIMEOUT = float(os.environ.get("CODEX_IMAGEGEN_TIMEOUT") or 280)
+# How long a run that is cancelled or past its timeout gets to end on SIGTERM, which lets
+# generate.sh remove its work directory, before what is left of it is killed.
+STOP_GRACE = 5
 LOGIN_OUTPUT_WAIT = 20
 PREVIEW_EDGE = 768
 PREVIEW_QUALITY = 80
@@ -264,9 +265,15 @@ async def run_generate(args: list[str], prompt: str) -> tuple[int, str]:
     try:
         _, stderr = await asyncio.wait_for(proc.communicate(prompt.encode()), GENERATE_TIMEOUT)
     except TimeoutError:
-        os.killpg(proc.pid, signal.SIGKILL)
+        # SIGKILL alone left generate.sh's work directory in /tmp on every timeout.
+        os.killpg(proc.pid, signal.SIGTERM)
+        try:
+            await asyncio.wait_for(proc.wait(), STOP_GRACE)
+        except TimeoutError:
+            pass
+        kill_group(proc.pid)
         await proc.wait()
-        return -1, f"generate.sh ran past {GENERATE_TIMEOUT} s and was stopped."
+        return -1, f"generate.sh ran past {GENERATE_TIMEOUT:g} s and was stopped."
     except asyncio.CancelledError:
         # The client cancelled the call (notifications/cancelled, which the SDK applies by
         # cancelling this handler). generate.sh runs in a session of its own, so without this
@@ -283,7 +290,7 @@ def stop_cancelled(pgid: int) -> None:
         os.killpg(pgid, signal.SIGTERM)
     except ProcessLookupError:
         return
-    asyncio.get_running_loop().call_later(CANCEL_GRACE, kill_group, pgid)
+    asyncio.get_running_loop().call_later(STOP_GRACE, kill_group, pgid)
 
 
 def kill_group(pgid: int) -> None:
