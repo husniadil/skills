@@ -30,6 +30,7 @@ import asyncio
 import hmac
 import json
 import os
+import re
 import sys
 import time
 from contextvars import ContextVar
@@ -562,20 +563,44 @@ async def ask_approval(agent: str, request_id: str, ctx: Context) -> Elicit[Appr
     return Elicit(approval_question(found["name"], approval), Approve)
 
 
+def flat_choice(question: dict[str, Any]) -> tuple[str, tuple[str, ...]]:
+    """The title and labels of a choice the API sends as text, or no labels for any other question.
+
+    A choice that allows several picks, or has more than five options, comes as the question
+    `choice` with no options and its labels as a `- ` list after the title. A label may be
+    followed by a ` (note)` that is no part of it, and a question cut at its limit ends in an
+    ellipsis, so its list may be incomplete.
+    """
+    text = question.get("question") or ""
+    if question["id"] != "choice" or question.get("options") or text.endswith("…"):
+        return "", ()
+    title, _, listed = text.rpartition("\n\n")
+    lines = listed.split("\n")
+    labels = tuple(re.sub(r" \([^()]*\)$", "", line[2:]).strip() for line in lines)
+    if not title or not all(line.startswith("- ") for line in lines) or not all(labels):
+        return "", ()
+    return title, labels
+
+
 def answers_form(questions: list[dict[str, Any]]) -> type[BaseModel]:
     """A form with a field per question: its options to pick from, or text when it has none.
 
     One question is asked in the form's message, so its field carries no description. Several
-    each carry their own, unless it only repeats the field's title.
+    each carry their own, unless it only repeats the field's title. A choice sent as text is
+    a field to pick several from, since the labels are in the question's text.
     """
     fields: dict[str, Any] = {}
     for n, question in enumerate(questions):
         labels = tuple(o["label"] for o in question.get("options") or [] if o.get("label"))
+        multiple = question.get("multiSelect") is True
+        said = one_line(question.get("question") or "")
+        flat_title, flat_labels = flat_choice(question)
+        if flat_labels:
+            labels, multiple, said = flat_labels, True, one_line(flat_title)
         kind: Any = str
         if labels:
-            kind = list[Literal[labels]] if question.get("multiSelect") is True else Literal[labels]
+            kind = list[Literal[labels]] if multiple else Literal[labels]
         title = one_line(question.get("header") or question["id"])
-        said = one_line(question.get("question") or "")
         fields[f"q{n}"] = (
             kind,
             Field(
@@ -600,7 +625,8 @@ async def ask_prompt(agent: str, request_id: str, ctx: Context) -> Elicit[BaseMo
         )
     if len(questions) == 1:
         only = questions[0]
-        message = f"{found['name']} asks: {only.get('question') or only.get('header') or only['id']}"
+        asks = flat_choice(only)[0] or only.get("question") or only.get("header") or only["id"]
+        message = f"{found['name']} asks: {asks}"
     else:
         message = f"{found['name']} asks {len(questions)} questions."
     return Elicit(one_line(message), answers_form(questions))

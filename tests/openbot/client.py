@@ -107,6 +107,26 @@ FLAT_QUESTION = {
         }
     ],
 }
+# The same question with a note after a label, and one cut at the question's limit.
+FLAT_NOTE = {
+    "requestId": "p-4",
+    "requiresOpenBot": False,
+    "questions": [
+        {
+            "id": "choice",
+            "header": "Which days?",
+            "question": "Which days?\n\n- Monday (work)\n- Friday",
+            "options": None,
+        }
+    ],
+}
+FLAT_CUT = {
+    "requestId": "p-5",
+    "requiresOpenBot": False,
+    "questions": [
+        {"id": "choice", "header": "Which days?", "question": "Which days?\n\n- Monday\n- Fri…", "options": None}
+    ],
+}
 
 
 class OpenBot:
@@ -167,6 +187,10 @@ class Handler(BaseHTTPRequestHandler):
                 BOT.approvals = [TOOL_APPROVAL]
             elif body["text"] == "flat-question":
                 BOT.prompts = [FLAT_QUESTION]
+            elif body["text"] == "flat-note":
+                BOT.prompts = [FLAT_NOTE]
+            elif body["text"] == "flat-cut":
+                BOT.prompts = [FLAT_CUT]
             elif body["text"] == "question":
                 BOT.prompts = [QUESTION]
             elif body["text"] == "secret":
@@ -539,21 +563,43 @@ async def with_forms(env: dict[str, str]) -> None:
         )
 
         await client.call_tool("send_message", {"agent": "Ada", "text": "flat-question", "wait_seconds": 0})
-        reply.append(ElicitResult(action="accept", content={"choice": "Web, iOS"}))
+        reply.append(ElicitResult(action="accept", content={"choice": ["Web", "iOS"]}))
         await client.call_tool("answer_prompt", {"agent": "Ada", "request_id": "p-3"})
         message = asked[-1].message if asked else ""
         field = asked[-1].requested_schema.get("properties", {}).get("choice", {}) if asked else {}
         check(
-            "forms: one question's lines are folded into the message, and its field repeats nothing",
-            message == "Ada asks: Which platforms should the test cover? - Web - iOS - Android"
+            "forms: a choice sent as text is a field to pick several from, and the message names only its title",
+            message == "Ada asks: Which platforms should the test cover?"
             and "description" not in field
-            and field.get("type") == "string",
+            and field.get("type") == "array"
+            and field.get("items", {}).get("enum") == ["Web", "iOS", "Android"],
             [message, field],
         )
         check(
-            "forms: a typed answer is sent as it was typed",
-            last("POST", "/prompts/")["body"] == {"answers": {"choice": ["Web, iOS"]}},
+            "forms: each pick is one value of answers.choice",
+            last("POST", "/prompts/")["body"] == {"answers": {"choice": ["Web", "iOS"]}},
             last("POST", "/prompts/"),
+        )
+
+        await client.call_tool("send_message", {"agent": "Ada", "text": "flat-note", "wait_seconds": 0})
+        reply.append(ElicitResult(action="accept", content={"choice": ["Monday", "Friday"]}))
+        await client.call_tool("answer_prompt", {"agent": "Ada", "request_id": "p-4"})
+        field = asked[-1].requested_schema.get("properties", {}).get("choice", {}) if asked else {}
+        check(
+            "forms: the note after a label is not part of the label",
+            field.get("items", {}).get("enum") == ["Monday", "Friday"]
+            and last("POST", "/prompts/")["body"] == {"answers": {"choice": ["Monday", "Friday"]}},
+            [field, last("POST", "/prompts/")],
+        )
+
+        await client.call_tool("send_message", {"agent": "Ada", "text": "flat-cut", "wait_seconds": 0})
+        reply.append(ElicitResult(action="accept", content={"choice": "Monday"}))
+        await client.call_tool("answer_prompt", {"agent": "Ada", "request_id": "p-5"})
+        field = asked[-1].requested_schema.get("properties", {}).get("choice", {}) if asked else {}
+        check(
+            "forms: a question cut at its limit stays a text field, and a typed answer is sent as it was typed",
+            field.get("type") == "string" and last("POST", "/prompts/")["body"] == {"answers": {"choice": ["Monday"]}},
+            [field, last("POST", "/prompts/")],
         )
 
         await client.call_tool("send_message", {"agent": "Ada", "text": "secret", "wait_seconds": 0})
