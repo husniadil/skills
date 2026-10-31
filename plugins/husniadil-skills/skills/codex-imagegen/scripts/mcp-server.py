@@ -29,6 +29,8 @@ import re
 import signal
 import subprocess
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -48,6 +50,9 @@ GENERATE_TIMEOUT = float(os.environ.get("CODEX_IMAGEGEN_TIMEOUT") or 280)
 # How long a run that is cancelled or past its timeout gets to end on SIGTERM, which lets
 # generate.sh remove its work directory, before what is left of it is killed.
 STOP_GRACE = 5
+# How long a server that is shutting down gives those runs before it kills them. The stdio
+# client in mcp 2.3.0 sends the server SIGTERM 2 s after it closes the server's stdin.
+SHUTDOWN_WAIT = 1
 LOGIN_OUTPUT_WAIT = 20
 PREVIEW_EDGE = 768
 PREVIEW_QUALITY = 80
@@ -68,6 +73,15 @@ AUTH_FAILURE = re.compile(
     r"unauthorized \(401\)|could not be refreshed|sign(?:ing)? in again|not logged in", re.IGNORECASE
 )
 
+
+@asynccontextmanager
+async def lifespan(_: MCPServer) -> AsyncIterator[None]:
+    try:
+        yield
+    finally:
+        await finish_stops()
+
+
 mcp = MCPServer(
     "codex-imagegen",
     instructions=(
@@ -75,6 +89,7 @@ mcp = MCPServer(
         "Its result shows a small preview, and the full-resolution PNG stays on the host "
         "running this server, at the path the result names."
     ),
+    lifespan=lifespan,
 )
 
 
@@ -271,39 +286,64 @@ async def run_generate(args: list[str], prompt: str) -> tuple[int, str]:
     try:
         _, stderr = await asyncio.wait_for(proc.communicate(prompt.encode()), GENERATE_TIMEOUT)
     except TimeoutError:
-        # SIGKILL alone left generate.sh's work directory in /tmp on every timeout.
-        os.killpg(proc.pid, signal.SIGTERM)
-        try:
-            await asyncio.wait_for(proc.wait(), STOP_GRACE)
-        except TimeoutError:
-            pass
-        kill_group(proc.pid)
-        await proc.wait()
+        # Shielded, so a call cancelled while its run is stopping still finishes the stop.
+        await asyncio.shield(stop_run(proc))
         return -1, f"generate.sh ran past {GENERATE_TIMEOUT:g} s and was stopped."
     except asyncio.CancelledError:
         # The client cancelled the call (notifications/cancelled, which the SDK applies by
         # cancelling this handler). generate.sh runs in a session of its own, so without this
         # it and Codex ran on to the end and made an image nobody would see (measured
         # 2026-10-30). The handler is being cancelled, so nothing here may await.
-        stop_cancelled(proc.pid)
+        stop_run(proc)
         raise
     return proc.returncode or 0, stderr.decode(errors="replace")
 
 
-def stop_cancelled(pgid: int) -> None:
-    """End a cancelled run's process group: SIGTERM now, SIGKILL for what is left after the grace."""
+# The stops still running. The event loop keeps only a weak reference to a task.
+stopping: set[asyncio.Task[None]] = set()
+
+
+def stop_run(proc: asyncio.subprocess.Process) -> asyncio.Task[None]:
+    """Stop a run in a task of its own, which a handler being cancelled can start and leave."""
+    task = asyncio.get_running_loop().create_task(stop_group(proc))
+    stopping.add(task)
+    task.add_done_callback(stopping.discard)
+    return task
+
+
+async def stop_group(proc: asyncio.subprocess.Process) -> None:
+    """SIGTERM the run's process group, then SIGKILL what is left once generate.sh ends or STOP_GRACE passes.
+
+    SIGKILL alone left generate.sh's work directory in /tmp on every timeout.
+    """
     try:
-        os.killpg(pgid, signal.SIGTERM)
+        os.killpg(proc.pid, signal.SIGTERM)
     except ProcessLookupError:
         return
-    asyncio.get_running_loop().call_later(STOP_GRACE, kill_group, pgid)
-
-
-def kill_group(pgid: int) -> None:
     try:
-        os.killpg(pgid, signal.SIGKILL)
-    except ProcessLookupError:
+        await asyncio.wait_for(proc.wait(), STOP_GRACE)
+    except TimeoutError:
         pass
+    finally:
+        # Also when finish_stops cuts the stop short. A Codex slow on SIGTERM outlives generate.sh.
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+
+async def finish_stops() -> None:
+    """Give the stops still running SHUTDOWN_WAIT, then cut them short, which kills their groups.
+
+    A run cancelled as the client leaves is still stopping when this server exits, and the
+    event loop the stop runs on ends with it.
+    """
+    if not stopping:
+        return
+    _, pending = await asyncio.wait(stopping, timeout=SHUTDOWN_WAIT)
+    for task in pending:
+        task.cancel()
+    await asyncio.gather(*pending, return_exceptions=True)
 
 
 @mcp.tool()

@@ -3,7 +3,7 @@
 # signed-in (login status succeeds), approve (the device login completes), dead-token (exec
 # fails the way an expired login did on Codex 0.162.1), alpha (exec "makes" fixture-alpha.png,
 # which has a hole, rather than fixture.png), slow (exec writes its pid to exec-pid, then waits
-# 60 s before it makes anything).
+# 60 s before it makes anything), stubborn (exec ignores SIGTERM, as a Codex slow to stop would).
 set -uo pipefail
 d=$FAKE_CODEX_DIR
 
@@ -26,6 +26,7 @@ case "$1 ${2:-}" in
     cat > "$d/exec-prompt"
     thread="thread-$$"
     echo "{\"type\":\"thread.started\",\"thread_id\":\"$thread\"}"
+    [[ -f "$d/stubborn" ]] && trap '' TERM
     if [[ -f "$d/slow" ]]; then echo "$$" > "$d/exec-pid"; sleep 60; fi
     if [[ -f "$d/dead-token" ]]; then
       echo '{"type":"turn.failed","error":{"message":"workspace routing discovery unauthorized (401)"}}'
