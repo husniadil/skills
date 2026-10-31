@@ -585,9 +585,10 @@ def flat_choice(question: dict[str, Any]) -> tuple[str, tuple[str, ...]]:
 def answers_form(questions: list[dict[str, Any]]) -> type[BaseModel]:
     """A form with a field per question: its options to pick from, or text when it has none.
 
-    One question is asked in the form's message, so its field carries no description. Several
-    each carry their own, unless it only repeats the field's title. A choice sent as text is
-    a field to pick several from, since the labels are in the question's text.
+    One question is asked in the form's message, so its field carries no description, and no
+    title that only repeats it. Several each carry their own description, unless it only
+    repeats the field's title. A choice sent as text is a field to pick several from, since
+    the labels are in the question's text.
     """
     fields: dict[str, Any] = {}
     for n, question in enumerate(questions):
@@ -605,7 +606,7 @@ def answers_form(questions: list[dict[str, Any]]) -> type[BaseModel]:
             kind,
             Field(
                 alias=question["id"],
-                title=title,
+                title=None if len(questions) == 1 and said == title else title,
                 description=said if len(questions) > 1 and said and said != title else None,
             ),
         )

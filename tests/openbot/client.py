@@ -107,6 +107,14 @@ FLAT_QUESTION = {
         }
     ],
 }
+# One question whose header is not its text.
+SINGLE = {
+    "requestId": "p-6",
+    "requiresOpenBot": False,
+    "questions": [
+        {"id": "build", "header": "Build", "question": "Which build?", "options": [{"label": "Debug"}]}
+    ],
+}
 # The same question with a note after a label, and one cut at the question's limit.
 FLAT_NOTE = {
     "requestId": "p-4",
@@ -187,6 +195,8 @@ class Handler(BaseHTTPRequestHandler):
                 BOT.approvals = [TOOL_APPROVAL]
             elif body["text"] == "flat-question":
                 BOT.prompts = [FLAT_QUESTION]
+            elif body["text"] == "single":
+                BOT.prompts = [SINGLE]
             elif body["text"] == "flat-note":
                 BOT.prompts = [FLAT_NOTE]
             elif body["text"] == "flat-cut":
@@ -576,10 +586,21 @@ async def with_forms(env: dict[str, str]) -> None:
             [message, field],
         )
         check(
+            "forms: a single question's field does not repeat the message as its title",
+            field.get("title") == "Choice",
+            field,
+        )
+        check(
             "forms: each pick is one value of answers.choice",
             last("POST", "/prompts/")["body"] == {"answers": {"choice": ["Web", "iOS"]}},
             last("POST", "/prompts/"),
         )
+
+        await client.call_tool("send_message", {"agent": "Ada", "text": "single", "wait_seconds": 0})
+        reply.append(ElicitResult(action="accept", content={"build": "Debug"}))
+        await client.call_tool("answer_prompt", {"agent": "Ada", "request_id": "p-6"})
+        field = asked[-1].requested_schema.get("properties", {}).get("build", {}) if asked else {}
+        check("forms: a single question's own header stays its title", field.get("title") == "Build", field)
 
         await client.call_tool("send_message", {"agent": "Ada", "text": "flat-note", "wait_seconds": 0})
         reply.append(ElicitResult(action="accept", content={"choice": ["Monday", "Friday"]}))
