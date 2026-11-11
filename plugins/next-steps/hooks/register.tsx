@@ -1,6 +1,9 @@
 /* @jsxRuntime classic */
 /* @jsx h */
 /* @jsxFrag Fragment */
+// Modified by Husni Adil Makmur, 2026-11-11, from anthropics/claude-plugins-community
+// at commit 163301d: a press outside the terminal submits the prompt, and surfaces
+// without the AbovePrompt band get the suggestions as a Placed row.
 // next-steps: when a turn ends, fork the session (shares the prompt cache, so
 // it has full context for the price of one short reply) and ask for up to
 // three likely next prompts. Draw them as 1/2/3 buttons in the band above the

@@ -69,4 +69,4 @@ Nothing leaves the session except the fork, which is one extra request to the sa
 
 ## License
 
-MIT, by Thariq Shihipar.
+By Thariq Shihipar. The plugin's manifest declares MIT, while the repository it comes from, `anthropics/claude-plugins-community`, is under Apache 2.0 at its root and ships no license file in this plugin's folder. This copy follows the Apache 2.0 terms: `LICENSE` here is that repository's license text, and the modified files say so (`hooks/register.tsx` in its header, this README above). `tests/` is new.

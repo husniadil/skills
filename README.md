@@ -176,7 +176,9 @@ that differ and the poses of what moves in each shot.
 
 `plugins/next-steps` is by Thariq Shihipar, from
 [anthropics/claude-plugins-community](https://github.com/anthropics/claude-plugins-community/tree/163301d/next-steps)
-at commit `163301d`, and stays under MIT as its manifest declares. The changes: a press in
+at commit `163301d`. Its manifest declares MIT, while that repository is under Apache 2.0
+at its root with no license file in the plugin's folder, so this copy carries the Apache 2.0
+text in `plugins/next-steps/LICENSE` and marks what it changed. The changes: a press in
 the desktop app, VS Code or the mobile app sends the prompt, since those draw a prompt box
 a plugin cannot fill, VS Code and the mobile app get the suggestions as a row at the end
 of the transcript, and the README is rewritten.
