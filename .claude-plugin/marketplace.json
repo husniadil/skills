@@ -4,7 +4,7 @@
     "name": "Husni Adil Makmur",
     "url": "https://github.com/husniadil"
   },
-  "description": "Claude plugins by Husni Adil Makmur: personal skills and workflow commands, and the Indonesian holiday calendar.",
+  "description": "Claude plugins by Husni Adil Makmur: personal skills and workflow commands, the Indonesian holiday calendar, and next-prompt suggestions.",
   "plugins": [
     {
       "name": "husniadil-skills",
@@ -50,6 +50,23 @@
         "calendar",
         "cuti-bersama",
         "libur"
+      ],
+      "category": "productivity"
+    },
+    {
+      "name": "next-steps",
+      "source": "./plugins/next-steps",
+      "description": "After each turn, suggests up to three next prompts above the input. Press 1, 2 or 3 to put one in the prompt box as a draft you can edit, 0 to dismiss.",
+      "author": {
+        "name": "Thariq Shihipar"
+      },
+      "license": "MIT",
+      "keywords": [
+        "suggestions",
+        "next-steps",
+        "prompt",
+        "function-hooks",
+        "ui"
       ],
       "category": "productivity"
     }

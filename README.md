@@ -7,6 +7,8 @@ Claude plugins by Husni Adil Makmur, in one marketplace named `husniadil`:
 - **indonesian-holiday-calendar**: Indonesian public holidays and cuti bersama as calendar
   tools, and the next holiday above the prompt in Claude Code. See
   [its README](plugins/indonesian-holiday-calendar/README.md).
+- **next-steps**: up to three suggested next prompts above the input in Claude Code after
+  each turn. See [its README](plugins/next-steps/README.md).
 
 ## Install
 
@@ -20,6 +22,7 @@ Claude Code plugin marketplace:
 /plugin marketplace add husniadil/skills
 /plugin install husniadil-skills@husniadil
 /plugin install indonesian-holiday-calendar@husniadil
+/plugin install next-steps@husniadil
 ```
 
 In Claude Code a plugin's skills are invoked with the plugin's name in front, such as
@@ -170,3 +173,7 @@ stays under GPL-3.0 (its own `LICENSE`). The changes: transcription goes through
 `transcribe-audio` skill, its prerequisites are checked before it runs, a video URL is
 downloaded with `yt-dlp` before the analysis, and `scripts/framesift.py` keeps the frames
 that differ and the poses of what moves in each shot.
+
+`plugins/next-steps` is by Thariq Shihipar, copied unchanged from
+[anthropics/claude-plugins-community](https://github.com/anthropics/claude-plugins-community/tree/163301d/next-steps)
+at commit `163301d`, and stays under MIT as its manifest declares.
