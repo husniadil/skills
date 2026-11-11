@@ -174,6 +174,7 @@ stays under GPL-3.0 (its own `LICENSE`). The changes: transcription goes through
 downloaded with `yt-dlp` before the analysis, and `scripts/framesift.py` keeps the frames
 that differ and the poses of what moves in each shot.
 
-`plugins/next-steps` is by Thariq Shihipar, copied unchanged from
+`plugins/next-steps` is by Thariq Shihipar, copied from
 [anthropics/claude-plugins-community](https://github.com/anthropics/claude-plugins-community/tree/163301d/next-steps)
-at commit `163301d`, and stays under MIT as its manifest declares.
+at commit `163301d` with its code unchanged and its README rewritten, and stays under MIT
+as its manifest declares.
