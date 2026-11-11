@@ -6,6 +6,7 @@
     "name": "Thariq Shihipar"
   },
   "license": "MIT",
+  "icon": "./assets/icon.png",
   "keywords": ["suggestions", "next-steps", "prompt", "function-hooks", "ui"],
   "userConfig": {
     "minAnswerChars": {
