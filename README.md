@@ -7,8 +7,8 @@ Claude plugins by Husni Adil Makmur, in one marketplace named `husniadil`:
 - **indonesian-holiday-calendar**: Indonesian public holidays and cuti bersama as calendar
   tools, and the next holiday above the prompt in Claude Code. See
   [its README](plugins/indonesian-holiday-calendar/README.md).
-- **next-steps**: up to three suggested next prompts above the input in Claude Code after
-  each turn. See [its README](plugins/next-steps/README.md).
+- **next-steps**: up to three suggested next prompts after each turn in Claude Code, in
+  the terminal, the desktop app's Code tab, VS Code and the mobile app. See [its README](plugins/next-steps/README.md).
 
 ## Install
 
@@ -174,7 +174,9 @@ stays under GPL-3.0 (its own `LICENSE`). The changes: transcription goes through
 downloaded with `yt-dlp` before the analysis, and `scripts/framesift.py` keeps the frames
 that differ and the poses of what moves in each shot.
 
-`plugins/next-steps` is by Thariq Shihipar, copied from
+`plugins/next-steps` is by Thariq Shihipar, from
 [anthropics/claude-plugins-community](https://github.com/anthropics/claude-plugins-community/tree/163301d/next-steps)
-at commit `163301d` with its code unchanged and its README rewritten, and stays under MIT
-as its manifest declares.
+at commit `163301d`, and stays under MIT as its manifest declares. The changes: a press in
+the desktop app, VS Code or the mobile app sends the prompt, since those draw a prompt box
+a plugin cannot fill, VS Code and the mobile app get the suggestions as a row at the end
+of the transcript, and the README is rewritten.

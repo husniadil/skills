@@ -7,18 +7,23 @@
 // composer; a press writes that prompt into the real composer as the person's
 // draft ($.prompt.fill) for them to edit and Enter; 0 dismisses. The top
 // suggestion is also offered as the composer's dim Tab-to-take ghost text
-// ($.prompt.suggest). Nothing is submitted by the plugin, so no origin framing.
+// ($.prompt.suggest).
 // The fork is also handed the session's skills and slash commands
 // ($.command.list), so a suggestion can be "/skill arguments".
+// Desktop, VS Code and mobile draw their own prompt box, which a mod cannot
+// write into, so a press there submits the prompt instead; the press is the
+// person's choice. The AbovePrompt band is raised on the terminal and desktop
+// only, so on the other surfaces the suggestions are a Placed row at the end
+// of the transcript.
 
-import type { CommandInfo, EngineInterface, Register, RenderElement } from 'claude-code'
+import type { CommandInfo, EngineInterface, Register, RenderElement, RenderSurface } from 'claude-code'
 
 type Suggestion = { label: string; prompt: string }
 
 type View =
   | { kind: 'hidden' }
   | { kind: 'loading'; turnId: string }
-  | { kind: 'offer'; items: Suggestion[] }
+  | { kind: 'offer'; items: Suggestion[]; placeId: string | null }
 
 const MAX_SUGGESTIONS = 3
 const LABEL_MAX = 48
@@ -27,6 +32,7 @@ const SKILL_NAME_MAX = 64
 const SKILL_DESCRIPTION_MAX = 120
 const SKILLS_DESCRIBED_BUDGET = 6000
 const SKILLS_NAMED_BUDGET = 3000
+const BAND_SURFACES: ReadonlySet<string> = new Set(['terminal', 'desktop'])
 
 // Suggestions are model output, and the model reads untrusted text (files,
 // tool results, web pages). Before any of it reaches the screen or the prompt
@@ -141,10 +147,49 @@ function parseSuggestions(reply: string, known: ReadonlySet<string> | null): Sug
 
 // Session-local view state; a hot reload resets it, which is fine.
 let view: View = { kind: 'hidden' }
+let placeCount = 0
 
 function show($: EngineInterface, nextView: View): void {
   view = nextView
   $.ui.invalidate('ui.render')
+}
+
+function take($: EngineInterface, prompt: string, surface: RenderSurface): void {
+  show($, { kind: 'hidden' })
+  if (surface !== 'terminal') {
+    void $.prompt.submit({ text: prompt }).catch(error => $.ui.toast(`could not send: ${String(error)}`))
+    return
+  }
+  void $.prompt.fill({ text: prompt }).then(
+    r => r.isFilled || $.ui.toast('could not fill the prompt box'),
+    error => $.ui.toast(`could not fill: ${String(error)}`),
+  )
+}
+
+function offerTree(
+  $: EngineInterface,
+  { Box, Text, Button }: Pick<ReturnType<EngineInterface['ui']['resolve']>, 'Box' | 'Text' | 'Button'>,
+  items: readonly Suggestion[],
+): RenderElement {
+  return (
+    <Box flexDirection="column">
+      <Text dimColor>next:</Text>
+      {items.map((item, index) => (
+        <Box key={`s${index}`} marginLeft={2}>
+          <Button
+            key={`s${index}`}
+            hotkey={String(index + 1)}
+            plain
+            label={item.label}
+            onPress={press => take($, item.prompt, press.surface)}
+          />
+        </Box>
+      ))}
+      <Box marginLeft={2}>
+        <Button key="dismiss" hotkey="0" plain label="dismiss" onPress={() => show($, { kind: 'hidden' })} />
+      </Box>
+    </Box>
+  )
 }
 
 export const register: Register = (on, options) => {
@@ -177,7 +222,21 @@ export const register: Register = (on, options) => {
       }
       // A newer turn started (or another completed) while we waited: drop ours.
       if (view.kind !== 'loading' || view.turnId !== turnId) return
-      show($, items.length === 0 ? { kind: 'hidden' } : { kind: 'offer', items })
+      if (items.length === 0) {
+        show($, { kind: 'hidden' })
+        return
+      }
+      // A surface without the band gets a row at the transcript's end. Placed
+      // only when one is attached, so a terminal alone gets no empty row.
+      const surfaces = await $.session.surfaces()
+      let placeId: string | null = null
+      if (surfaces.some(surface => !BAND_SURFACES.has(surface))) {
+        placeCount += 1
+        placeId = `offer-${placeCount}`
+        await $.ui.place({ id: placeId }).catch(error => $.ui.log(`place failed: ${String(error)}`))
+      }
+      if (view.kind !== 'loading' || view.turnId !== turnId) return
+      show($, { kind: 'offer', items, placeId })
       if (items[0] !== undefined) void $.prompt.suggest({ text: items[0].prompt }).catch(() => undefined)
     })()
     return result
@@ -199,32 +258,28 @@ export const register: Register = (on, options) => {
       )
     }
 
-    const items = view.items
     return (
       <Box flexDirection="column">
         {below}
         <Box marginTop={1} />
-        <Text dimColor>next:</Text>
-        {items.map((item, index) => (
-          <Box key={`s${index}`} marginLeft={2}>
-            <Button
-              hotkey={String(index + 1)}
-              plain
-              label={item.label}
-              onPress={() => {
-                show($, { kind: 'hidden' })
-                void $.prompt.fill({ text: item.prompt }).then(
-                  r => r.isFilled || $.ui.toast('could not fill the prompt box'),
-                  error => $.ui.toast(`could not fill: ${String(error)}`),
-                )
-              }}
-            />
-          </Box>
-        ))}
-        <Box marginLeft={2}>
-          <Button hotkey="0" plain label="dismiss" onPress={() => show($, { kind: 'hidden' })} />
-        </Box>
+        {offerTree($, { Box, Text, Button }, view.items)}
       </Box>
     )
+  })
+
+  // Surfaces without the band: draw the current offer in its placed row. Older
+  // rows, and every row on the band's surfaces, pass and draw nothing.
+  on('ui.render', { component: 'Placed' }, async ($, e, next): Promise<RenderElement> => {
+    const below = await next(e)
+    if (
+      e.props.plugin !== 'next-steps' ||
+      view.kind !== 'offer' ||
+      e.props.id !== view.placeId ||
+      BAND_SURFACES.has(e.surface)
+    ) {
+      return below
+    }
+    const { Box, Text, Button } = $.ui.resolve(e)
+    return offerTree($, { Box, Text, Button }, view.items)
   })
 }
