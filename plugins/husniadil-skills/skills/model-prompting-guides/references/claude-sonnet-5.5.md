@@ -162,7 +162,9 @@ message for one when it arrives right after a tool result.
 - Keep harness notices in a separate mid-conversation system message after the user's
   words, never in the same block.
 - In interactive sessions where users can type mid-turn, do not add a token or budget
-  countdown after tool results.
+  countdown after tool results. A task budget adds a similar countdown. Anthropic's
+  prompting page has not seen budgets cause this misread, but its migration notes say they
+  can. If you see the misread with a budget set, run the session without one.
 
 ### Running without up-front thinking
 
@@ -175,9 +177,11 @@ reasoning tasks without tools, use adaptive thinking instead.
 ### Changing instructions mid-run
 
 Sonnet 5.5 thinking blocks are tied to the conversation. Replaying one after an edit to
-`system`, `tools`, or an earlier message can return a 400 error. Keep the history
-append-only and change instructions or tools with mid-conversation system messages rather
-than edits.
+`system`, `tools`, or an earlier message might return a 400 error or might silently lose
+the reasoning, depending on the account and the request's `block_binding` setting. Keep
+the history append-only and change instructions or tools with mid-conversation system
+messages rather than edits. Thinking blocks also work only in the account that produced
+them, so a subagent that continues another account's conversation runs without them.
 
 ### Tool calls with a slightly wrong name
 
@@ -197,7 +201,8 @@ accurately than without them at `max`. On technical drawings the tools help only
 
 A decline returns `stop_reason: "refusal"`, with `stop_details.category` naming `cyber`,
 `bio`, `frontier_llm`, `reasoning_extraction`, or `general_harms`. Benign work can trigger
-`general_harms`. Remove instructions asking the model to include its reasoning in the
+`general_harms`. Server-side fallback (beta) retries only `cyber` and `frontier_llm`
+declines, on Sonnet 5. Remove instructions asking the model to include its reasoning in the
 response, which invite `reasoning_extraction`, and read summarized thinking
 (`display: "summarized"`) instead. A short explanation of the answer or a summary of the
 actions taken is still fine to ask for.
@@ -212,6 +217,9 @@ actions taken is still fine to ask for.
 - User text inside a `tool_result` block, and a countdown after every tool result in
   interactive sessions.
 - The Sonnet 5 effort setting, carried over without a fresh sweep.
+- Workarounds written for Sonnet 5: refusal steering, tool-call retry shims, and "do not be
+  lazy" lines. Anthropic's migration notes say 5.5 is better at what these patched. Remove
+  them and re-run your evals before tuning anything else.
 
 ## Effort
 
@@ -283,24 +291,29 @@ Return:
 - `stop_reason: "refusal"` with `reasoning_extraction`: remove instructions to show
   reasoning in the response.
 - Reply cut off: raise `max_tokens` to leave room for thinking.
-- 400 error after editing earlier history: keep the conversation append-only and use
-  mid-conversation system messages.
+- 400 error, or reasoning that seems lost, after editing earlier history: keep the
+  conversation append-only and use mid-conversation system messages.
 
 ## Provenance
 
-Last cross-checked: 2026-10-04. Sourced from Anthropic's official documentation, all read on
-2026-10-03:
+Last cross-checked: 2026-11-13. Sources from Anthropic's official documentation:
 
-- Prompting Claude Sonnet 5.5:
+- Prompting Claude Sonnet 5.5, re-read in full on 2026-11-13:
   https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5
-- What's new in Claude Sonnet 5.5:
-  https://platform.claude.com/docs/en/models/sonnet-5-5/whats-new-sonnet-5-5
-- Migrating to Claude Sonnet 5.5:
+  Source of every prompt block and of the effort, JSON, progress-update, mid-turn message,
+  verification, tool-call, visual-input and refusal sections.
+- Migrating to Claude Sonnet 5.5, re-read on 2026-11-13 (searched for the thinking-block,
+  `between_tools` and fallback rules), plus the copy bundled with the claude-api skill, read
+  the same day:
   https://platform.claude.com/docs/en/models/sonnet-5-5/migration-guide
-- Claude Sonnet 5.5 model page:
+  The bundled copy is the only source here for the Sonnet 5 workaround bullet, the
+  `block_binding` account rule, and the "thinks briefly before almost every reply" effort
+  fact. The public page says a prefix-check failure "might or might not" return a 400.
+- What's new in Claude Sonnet 5.5 and the model page, last read 2026-10-03:
+  https://platform.claude.com/docs/en/models/sonnet-5-5/whats-new-sonnet-5-5
   https://platform.claude.com/docs/en/models/sonnet-5-5/overview
 - Prompting Claude Sonnet 5, read only to state which of its rules changed:
   https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5
 
 Prompt blocks are quoted from the Sonnet 5.5 guide, with punctuation adjusted to this
-skill's style.
+skill's style. The "Delegation template" is this skill's own heuristic.
