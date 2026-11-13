@@ -79,10 +79,9 @@ introduces an alternative nobody asked about.
 ## Avoid
 
 - Leaving autonomy implicit. Silence produces approval requests.
-- Reasoning choreography and repeated "reflect" or "double-check" directives. Heuristic:
-  the Astra page does not say this; the family guidance says to describe the destination
-  rather than prescribe steps, and to drop process instructions for behavior the model
-  already performs reliably.
+- Reasoning choreography and repeated "reflect" or "double-check" directives. From the GPT-6
+  family guidance, not the Astra page: describe the destination rather than prescribe steps,
+  and drop process instructions for behavior the model already performs reliably.
 - Blanket "add tests" rules on small reversible changes.
 - Duplicated rules spread across skills, memory, and system prompt with slightly different
   wording.
@@ -126,8 +125,3 @@ Return:
 - A skill hijacks the task: state precedence, then ask for the file-and-quote explanation.
 - Test scope balloons on a small change: add the testing rule.
 - Overformatted output: give the style block.
-
-## Provenance
-
-Last cross-checked: 2026-09-12. Sourced from the official OpenAI model guidance for GPT-6
-Astra and the GPT-6 Astra model page. Guidance for other GPT-6 models is not covered here.

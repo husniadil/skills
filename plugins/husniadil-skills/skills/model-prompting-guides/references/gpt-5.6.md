@@ -151,12 +151,3 @@ Stop rules:
 - Answers too short: remove blanket brevity lines and raise `text.verbosity`.
 - Weak reasoning: add the missing success criterion or tool-routing rule before raising the
   reasoning level.
-
-## Provenance
-
-Last cross-checked: 2026-09-12. Sourced from OpenAI's prompting guidance for GPT-5.6
-(developers.openai.com/api/docs/guides/prompt-guidance-gpt-5p6), which covers the GPT-5.6
-family, the Sol, Terra, and Luna model pages, and the Codex agent prompts in
-openai/codex. OpenAI does not publish separate prompting guidance for Sol, Terra, and Luna
-individually, and the docs describe no prompting-relevant behavioral difference between
-them.

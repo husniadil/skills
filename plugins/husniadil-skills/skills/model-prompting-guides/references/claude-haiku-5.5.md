@@ -6,8 +6,7 @@ Rules for writing a task prompt for an agent or subagent running Claude Haiku 5.
 Anthropic says prompts written for Haiku 4.5 should perform well on Haiku 5.5 without
 changes. This file holds what changed and what to add. The cross-model blocks in
 [claude-haiku-4.5.md](claude-haiku-4.5.md) (analysis-only tasks, scope, examples, long
-context, parallelism) apply here too. The snippets below are quoted from Anthropic's Haiku
-5.5 prompting page, with punctuation adjusted.
+context, parallelism) apply here too.
 
 ## What changed from Haiku 4.5
 
@@ -41,12 +40,9 @@ The current date is {{current_date}}.
 ```
 
   Send the same `system` and `tools` on every later request in that conversation. If the
-  conversation continues on a later day, change `system` to the new date. In our probe
-  (Haiku 5.5, thinking blocks in history, 10 samples), the new date in the newest user turn
-  was ignored 10 of 10 times, and the changed `system` was used 10 of 10 times with no 400.
-  The 400 that the migration guide describes did not appear on that account. Other changes
-  to `system` or `tools` in a conversation that sends thinking blocks back still risk a 400
-  (see Changing instructions mid-run).
+  conversation continues on a later day, change `system` to the new date. A date in the
+  newest user turn is ignored. Other changes to `system` or `tools` in a conversation that
+  sends thinking blocks back risk a 400 (see Changing instructions mid-run).
 
 ## Include when applicable
 
@@ -310,24 +306,3 @@ Return:
 - Cost climbs over a long subagent loop: thinking blocks stay in the history. Compact the
   conversation (server-side compaction is in beta for this model), or hand the remaining
   work to a fresh subagent with a written summary.
-
-## Provenance
-
-Last cross-checked: 2026-11-13. Sources, all read on 2026-11-13:
-
-- Prompting Claude Haiku 5.5:
-  https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-haiku-5-5
-  Source of the effort guidance, the snippets, and the measured results quoted above.
-- Context windows:
-  https://platform.claude.com/docs/en/build-with-claude/context-windows
-  Source of the 1M context, the long-prompt rate, and the retention of previous thinking blocks.
-- Migrating to Claude Haiku 5.5:
-  https://platform.claude.com/docs/en/models/haiku-5-5/migration-guide
-  The copy bundled with the claude-api skill. Source of the 400 errors, the sampling rules,
-  the refusal categories, the account and model binding of thinking blocks, and the
-  mid-conversation system message rules.
-- Probes, run 2026-11-13 on one account. Wording: the "must" and imperative registers, 10
-  samples each, both 10 of 10 (a ceiling, so no difference shown). Date: the newest-turn rule
-  and the changed-`system` rule, 10 samples each with thinking blocks in history, and 10 each
-  without. The thinking-history result is the one the date section relies on. The scripts stay
-  in the session scratchpad, not in the repository.

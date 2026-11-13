@@ -72,7 +72,10 @@ Each reference in `plugins/husniadil-skills/skills/model-prompting-guides/refere
 4. Effort levels and what they change
 5. Delegation template
 6. Failure-mode adjustments
-7. Provenance and last cross-check date
+
+Where each guide comes from, the date it was last checked, and the tests behind it live in
+`docs/model-guide-provenance/` under the same file name. That folder sits outside the plugin,
+so an agent reading a guide only sees what it needs to write the prompt.
 
 The guides say how to prompt a model, not which model to pick. One file per model version,
 named in full (`claude-opus-5.md`, `gpt-6-astra.md`). A new version gets a new file, and
@@ -145,8 +148,8 @@ How the level behaves in Claude Code:
 ## Updating a guide
 
 For a new model version, add a new reference from the provider's official prompting page
-and link it in `SKILL.md`. For an existing one, edit in place and bump the
-`Last cross-checked` date in its Provenance section. Keep the 4 metadata files in sync:
+and link it in `SKILL.md`, with its sources in `docs/model-guide-provenance/`. For an
+existing one, edit in place and bump the `Last cross-checked` date in its provenance file. Keep the 4 metadata files in sync:
 `plugins/husniadil-skills/.claude-plugin/plugin.json`, `plugins/husniadil-skills/.codex-plugin/plugin.json`,
 `.claude-plugin/marketplace.json`, `package.json`.
 
