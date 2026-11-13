@@ -33,12 +33,15 @@ agent definition when you control one.
 
 ## Always include
 
-- For multistep agentic work, a completion contract that separates ordinary obstacles,
-  which the agent diagnoses and works through, from deliberate blockers, which it leaves
-  alone and reports. The model ends turns early more often at `low` and `medium`: a list of
-  what remains, an offer to continue, or a stop at a timeout.
-- The actions that still need a go-ahead, named exactly. With the completion text the model
-  asks less often, so keep your own confirmation step for risky or irreversible actions.
+- For multistep agentic work at `low` or `medium` effort, the finishing-work block below.
+  It separates ordinary obstacles, which the agent diagnoses and works through, from
+  deliberate blockers, which it leaves alone and reports. At those levels the model ends
+  turns early more often: a list of what remains, an offer to continue, or a stop at a
+  timeout. At `high` and above, add it only after you see such stops, since it costs about
+  30 percent more output tokens.
+- The actions that still need a go-ahead, named exactly. With the finishing-work block the
+  model asks less often, so keep your own confirmation step for risky or irreversible
+  actions.
 - For coding work, who owns the code (see Code ownership). Saying nothing makes the model
   treat the code as someone else's.
 
@@ -264,7 +267,8 @@ uses. Rerun the effort sweep rather than carrying over a level tuned on Fable 5.
 - `max`: measuring the ceiling, or open-ended problems such as mathematics where time and
   tokens do not matter.
 
-At `low` and `medium` the model stops early more often, so add the completion contract. At
+At `low` and `medium` the model stops early more often, so add the finishing-work block for
+agentic work there. At
 `high` and above it thinks before almost every reply, even a greeting, so set a large
 `max_tokens` and use a lower level for easy turns. Effort barely changes reply length, so
 set length and tone in the prompt.
