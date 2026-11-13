@@ -148,7 +148,8 @@ budget for multistep work rather than adding "think harder" to the prompt, and k
 `max_tokens` above the budget with room for the reply.
 
 A harness that pins an effort level for a subagent must not send `effort` to Haiku 4.5, or
-the request fails. Confirm the harness drops the field before you rely on a pinned-level
+the request fails. Claude Code drops the field for this model, per this repository's
+README. On any other harness, confirm it drops the field before you rely on a pinned-level
 agent for this model.
 
 ## Delegation template (heuristic)

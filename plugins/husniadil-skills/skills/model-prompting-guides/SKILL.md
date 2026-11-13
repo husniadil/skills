@@ -50,4 +50,6 @@ Effort section. Then spawn it the way the harness allows:
   the level on the model as `provider/id:<level>`.
 
 Pick a level the model supports. On a model without effort levels, such as Claude Haiku
-4.5, the pinned level is ignored.
+4.5, Claude Code ignores the pinned level. The API itself rejects an `effort` field for
+that model, so on any other harness check that it drops the field before you rely on a
+pinned level.
