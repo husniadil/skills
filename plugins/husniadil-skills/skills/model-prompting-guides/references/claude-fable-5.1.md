@@ -23,6 +23,11 @@ What the API does on this model, which decides what a prompt can rely on:
 - Safety classifiers can decline a request with `stop_reason: "refusal"`. A prompt that
   asks the model to write out its reasoning can be declined as `reasoning_extraction`.
 
+Mythos 5.1 differs from Fable 5.1 in two API behaviors. Its safeguards depend on the access
+program the organization is approved under. Its prefix check is enforced by default on
+accounts of any age on the Claude API, Google Cloud Vertex AI and Microsoft Foundry, and not
+by default on Amazon Bedrock.
+
 In Claude Code the task prompt reaches the subagent as its first user message. Text that
 Anthropic says to put in a system prompt goes at the top of the task prompt, or in the
 agent definition when you control one.
@@ -411,8 +416,8 @@ Last cross-checked: 2026-11-13. Sources:
   (copy bundled with the claude-api skill, read 2026-11-13): source of the 400s on
   disabled thinking, `budget_tokens`, forced `tool_choice`, prefill and sampling, the
   `max_tokens` limit on thinking plus reply, which models read its thinking blocks, the
-  measure-first and "privately" notes on batching, the low-effort vision note, and the
-  advice to keep verification lines.
+  measure-first and "privately" notes on batching, the low-effort vision note, the advice
+  to keep verification lines, and the two Mythos 5.1 differences.
 
 The note on where system-prompt text goes in a Claude Code task prompt, the note that
 progress updates matter only where a person watches the subagent, the class-of-claims
