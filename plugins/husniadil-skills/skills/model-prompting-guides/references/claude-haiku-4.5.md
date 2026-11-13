@@ -1,33 +1,64 @@
 # Claude Haiku 4.5 prompting guide
 
-Rules for writing a task prompt for an agent or subagent running Claude Haiku 4.5.
+Rules for writing a task prompt for an agent or subagent running Claude Haiku 4.5
+(`claude-haiku-4-5`).
 
-Anthropic does not publish a model-specific prompting guide for Haiku 4.5. One documented
-model-specific behavior is covered here: Haiku 4.5 tracks its remaining context. Everything
-else is the cross-model Claude prompting best practices applied to a compact model, and is a
-heuristic to validate against your own evals rather than published model-specific behavior.
+Anthropic has no published prompting guide for Haiku 4.5. The model-specific prompting URL
+returned 404 when checked on 2026-11-13. This file has two parts. "Documented behavior"
+states Anthropic's API and context facts for this model. The rest is cross-model Claude
+prompting practice, applied to a model with no published guidance. Treat that part as a
+heuristic and check it against your own evals.
+
+## Documented behavior
+
+- Context window 200K tokens. Maximum output 64K tokens.
+- Thinking is off unless the request enables it: `thinking: {"type": "enabled", "budget_tokens": N}`.
+  `budget_tokens` must be at least 1024 and less than `max_tokens`.
+- `effort` is not supported. A request that sends it returns an error. Thinking depth comes
+  from the budget.
+- Interleaved thinking is not supported. The model does not think between tool calls.
+- Previous thinking blocks are stripped from the history when you pass them back. You do not
+  need to strip them yourself.
+- Context awareness: the API gives the model its token budget in the system prompt, and
+  reports usage after each tool call. The model tracks what remains. You never send these
+  tags.
+- `temperature`, `top_p`, and `top_k` are accepted until API version `2026-10-21`. On that
+  version any value returns a 400 on every model. Don't tune sampling.
+- A final assistant turn (prefill) is accepted when thinking is off. Later models reject it,
+  so don't build on it.
+- Haiku 4.5 does not return the safeguard refusals that Haiku 5.5 does.
 
 ## Always include
 
-- One concrete outcome, stated with an action verb.
-- Explicit mandatory behavior. Advisory wording produces advice.
-- Exact tool triggers and what each tool is responsible for.
+Write each required behavior as a direct imperative. Add the reason when there is one.
+
+- One concrete outcome, stated as an imperative.
+- Required behavior, stated as an imperative.
+- Exact tool triggers and what each tool is responsible for. Name what must be inspected
+  before an edit.
 - An observable done condition.
 - A positively stated output format.
 
 ```text
-You must inspect the source file before making a claim about current behavior.
-You must retrieve the current value; do not answer from memory.
-Implement the change with the available tools and verify it. Do not stop at a suggestion.
+Inspect the source file before you make a claim about current behavior.
+Retrieve the current value from the tool. Don't answer from memory.
+Implement the change with the available tools, then verify it. Don't stop at a suggestion.
 ```
 
-```text
-Use repository inspection for current implementation behavior. Use external retrieval for
-time-sensitive or externally defined facts. Use execution tools when static inspection
-cannot establish the behavior.
-```
+Use "must" only on a line the subagent skips on your evals. Anthropic documents no need for
+it across all lines on this model.
 
 ## Include when applicable
+
+### Date for search tools
+
+If the subagent has a search tool, give it today's date in `system` or in the search tool's
+description, so answers are grounded in current results. Anthropic tested this on Haiku 5.5,
+not on Haiku 4.5, so check it on your evals.
+
+```text
+The current date is {{current_date}}.
+```
 
 ### Analysis-only tasks
 
@@ -73,8 +104,9 @@ context or a prior tool result rather than guessing.
 
 ### Long-running agent work
 
-Haiku 4.5 tracks its remaining context. If the conversation will be compacted or task state
-persisted, say so, otherwise the model may start wrapping up early.
+Haiku 4.5 tracks its remaining context (see Documented behavior). If the conversation will be
+compacted or task state persisted, say so, and say where state goes. The model then knows
+how to carry work across the boundary.
 
 ```text
 This environment may compact conversation context and preserve task state across windows.
@@ -91,28 +123,39 @@ a check fails, investigate before finalizing.
 ```
 
 For extraction: compare every returned field against the source and drop anything not
-directly supported.
+directly supported. Anthropic reported that Haiku 5.5 skipped checks at `low` and `medium`
+effort, so check for the same here.
 
 ## Avoid
 
-- "Use tools if helpful", "check things as needed", "consider making the change".
-- "Think harder" and repeated self-check instructions. Raise the thinking budget instead.
+- Vague triggers: "Use tools if helpful", "check things as needed", "consider making the
+  change".
+- "Think harder" and repeated self-check instructions. Raise the thinking budget instead,
+  within `max_tokens`.
 - Negative formatting instructions. State the wanted shape.
 - Requests for hidden chain-of-thought. Ask for conclusions, evidence, and assumptions.
+- `effort` in the request, and `temperature`, `top_p`, or `top_k` used to tune output.
+- A thinking budget below 1024, or one at or above `max_tokens`.
+- Budget countdowns or token-budget tags written into the prompt. The API injects its own.
 
-## Effort
+## Effort: thinking budget instead
 
-Haiku 4.5 has no effort levels. Reasoning depth comes from the extended-thinking budget.
-Raise that budget for multistep work rather than adding "think harder" to the prompt.
+Haiku 4.5 has no effort levels. Depth comes from the extended-thinking budget. Raise the
+budget for multistep work rather than adding "think harder" to the prompt, and keep
+`max_tokens` above the budget with room for the reply.
 
-## Delegation template
+A harness that pins an effort level for a subagent must not send `effort` to Haiku 4.5, or
+the request fails. Confirm the harness drops the field before you rely on a pinned-level
+agent for this model.
+
+## Delegation template (heuristic)
 
 ```text
 Task:
 [One concrete outcome.]
 
 Context:
-[Only what is needed.]
+The current date is [date]. [Only what is needed.]
 
 Constraints:
 [Scope and invariants.]
@@ -133,15 +176,34 @@ Return:
 
 ## Failure-mode adjustments
 
-- Stops at a recommendation: replace advisory verbs with action verbs.
+- Stops at a recommendation: write the required behavior as an imperative.
 - Retrieval skipped: make the tool call mandatory for that class of claim.
 - Scope grows: name the affected component and the invariants.
 - Output shape drifts: supply a schema plus several aligned examples, and say the format
   applies to every item.
-- Wraps up early in a long session: describe the compaction or state mechanism.
+- Wraps up early in a long session: say whether the environment compacts context or
+  persists state, and where state goes. Test before adding more.
+- Reports a change done without a check: add the verification block.
+- Expects reasoning between tool calls: Haiku 4.5 does not support interleaved thinking.
+  Split the step, or let the next turn carry the reasoning.
+- 400 on `effort`: remove the field. Haiku 4.5 does not take it.
+- 400 on sampling parameters: remove them.
 
 ## Provenance
 
-Last cross-checked: 2026-09-12. Sourced from the cross-model Claude prompting best
-practices and the documented Haiku 4.5 context-awareness behavior. No dedicated Haiku 4.5
-prompting page exists.
+Last cross-checked: 2026-11-13. Sources:
+
+- Haiku 4.5 prompting page:
+  https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-haiku-4-5
+  Returned 404 on 2026-11-13. No model-specific guidance exists at this URL.
+- Context windows:
+  https://platform.claude.com/docs/en/build-with-claude/context-windows
+  Fetched 2026-11-13. Source of the 200K window, thinking-block stripping, the lack of
+  interleaved thinking, and context awareness.
+- Migrating to Claude Haiku 5.5 (copy bundled with the claude-api skill, read 2026-11-13):
+  source of the 64K maximum output, the `effort` error, the budget minimum and the
+  `max_tokens` rule, the sampling-parameter change on API version `2026-10-21`, and the
+  prefill and refusal differences from Haiku 5.5.
+- Cross-model blocks (scope, examples, long context, parallelism, verification, analysis-only
+  tasks): heuristics from cross-model Claude prompting practice. They were not re-checked
+  against a primary source in this pass.
