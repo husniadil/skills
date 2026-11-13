@@ -122,16 +122,15 @@ For charts, documents, diagrams, and UI replication, give the subagent tools to 
 crop, and check its own work. On this model tool use is a more cost-effective lever than
 more thinking. Re-test vision workarounds written for earlier models before keeping them.
 
-### Evidence and parallel work
+### Stale summaries next to primary sources
+
+When the subagent can see both a summary and the files it summarizes, add this block. In
+this skill's probe it stopped Opus 5 from quoting a stale summary for details it had not
+opened the primary file for (see Provenance):
 
 ```text
 Inspect the implementation and its tests for code behavior. Retrieve current sources for
 facts that change over time. Use secondary summaries only to locate primary material.
-```
-
-```text
-Run independent reads, searches, and analyses in parallel. Keep dependent decisions and
-mutations sequential.
 ```
 
 ### Thinking disabled
@@ -200,7 +199,7 @@ Evidence:
 [Primary sources that must be inspected before any claim.]
 
 Execution:
-Run independent work in parallel. Keep dependent steps sequential.
+Keep dependent steps sequential.
 
 Done when:
 [Observable conditions.]
@@ -253,5 +252,16 @@ Last cross-checked: 2026-11-13. Sources:
 - Migrating to Claude Opus 5 (copy bundled with the claude-api skill, read 2026-11-13):
   source of the Avoid item about "delegate more" guidance carried over from Opus 4.8.
 
-The evidence and parallel-work blocks, the reasoning-script Avoid item, and the "Delegation
-template" are this skill's own heuristics.
+The stale-summary block, the reasoning-script Avoid item, and the "Delegation template" are
+this skill's own heuristics.
+
+Probe run by this skill on 2026-11-13, Opus 5 at `high` effort, $1.49: 12 small service docs
+and a `SUMMARY.md` that was stale on three values, 5 lookup questions, 3 runs per arm, with
+and without the stale-summary block and a parallel-work line ("Run independent reads,
+searches, and analyses in parallel. Keep dependent decisions and mutations sequential.").
+All 30 answers were correct, and every run opened both the summary and the primary files.
+Asked for checkout's dependencies, every run without the block also gave their own
+dependencies' timeouts from the stale summary (fraud at 2000 ms, against 4000 ms in its own
+file), and every run with it opened those files instead. Both arms read files in parallel,
+and the parallel-work line made no consistent difference, so it was removed from this guide
+and from the template.
