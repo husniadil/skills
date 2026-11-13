@@ -1,27 +1,51 @@
 # Claude Opus 5 prompting guide
 
-Rules for writing a task prompt for an agent or subagent running Claude Opus 5.
+Rules for writing a task prompt for an agent or subagent running Claude Opus 5
+(`claude-opus-5`). Claude Opus 5.5 succeeds it, and Anthropic says Opus 5 prompts perform
+well there without changes. Use [claude-opus-5.5.md](claude-opus-5.5.md) for
+`claude-opus-5-5`. This file stays for agents still running Opus 5.
+
+What the API does on this model, which decides what a prompt can rely on:
+
+- Adaptive thinking is on when `thinking` is omitted. `thinking: {"type": "disabled"}` is
+  accepted only at effort `high` or below, and returns a 400 at `xhigh` or `max`.
+  `budget_tokens` returns a 400.
+- Thinking counts toward `max_tokens`, so a limit sized for a thinking-off route can cut the
+  reply off.
+- `temperature`, `top_p`, and `top_k` return a 400. So does an assistant prefill.
+- Mid-conversation system messages are supported, with no beta header.
+- Safety classifiers can decline a request with `stop_reason: "refusal"`. A prompt that asks
+  the model to write out its reasoning can be declined as `reasoning_extraction`.
 
 ## Always include
 
 - The final outcome and an observable done condition.
-- Authority over routine reversible decisions, with a narrow list of stop conditions.
-- An explicit scope boundary for narrow tasks. Opus 5 otherwise adds steps that were not
-  requested.
-- A conciseness instruction if visible response length matters. Lowering effort reduces
-  thinking, not the length of what the model says.
+- Authority over routine reversible decisions, and a narrow list of reasons to stop.
+- An explicit scope boundary for narrow tasks. Opus 5 otherwise adds steps nobody asked for,
+  or decides for itself what the task should be.
+- A length instruction when the length of the reply matters. Lowering effort reduces
+  thinking, and does not reliably shorten what the model writes.
 
 ```text
 Deliver what was asked, at the scope intended. Make routine judgment calls yourself, and
 check in only when different readings of the request would lead to materially different
-work. If the request seems mistaken, say so in a sentence and continue with the task as
-asked rather than quietly narrowing, widening, or transforming it. Finish the whole task,
-and stop short of actions clearly beyond it.
+work. If the request seems mistaken or a better approach exists, say so in a sentence and
+continue with the task as asked rather than quietly narrowing, widening, or transforming it.
+Finish the whole task, and stop short of actions that are clearly beyond what was asked.
 ```
 
 ```text
-Keep responses focused and brief. Keep caveats short and spend most of the response on the
-main answer.
+Keep responses focused, brief, and concise. Keep disclaimers and caveats short, and spend
+most of the response on the main answer. When asked to explain something, give a high-level
+summary unless an in-depth explanation is specifically requested.
+```
+
+In a long system prompt, repeat the length instruction in one line near the end:
+
+```text
+<tone_preference>
+Keep outputs reasonably concise.
+</tone_preference>
 ```
 
 ## Include when applicable
@@ -29,94 +53,135 @@ main answer.
 ### Agentic narration
 
 Opus 5 narrates readily during agentic work, announcing what it is about to do, and its
-per-message output in agentic sessions is often longer than prior models'. Describe the cadence
-you want rather than banning narration:
+messages in agentic sessions run longer than earlier models'. Describe the cadence you want
+instead of banning narration:
 
 ```text
 Before your first tool call, say in one sentence what you're about to do. While working,
 give a brief update only when you find something important or change direction. When you
-finish, lead with the outcome: your first sentence should answer what happened or what you
-found, with supporting detail after it.
+finish, lead with the outcome: your first sentence should answer "what happened" or "what
+did you find," with supporting detail after it for readers who want it.
 ```
 
 ### Written deliverables
 
+Files Opus 5 writes to disk (reports, Markdown documents, summaries) also run long:
+
 ```text
-Match the length of written documents to what the task needs. Do not pad with filler
-sections, redundant summaries, or boilerplate.
+Match the length of written documents to what the task needs: cover the substance, but do
+not pad with filler sections, redundant summaries, or boilerplate.
 ```
 
 ### Subagent delegation
 
+Opus 5 delegates to subagents more readily than earlier models, which multiplies cost and
+time on small tasks. If the subagent can spawn its own, cap it:
+
 ```text
-Delegate only for large tasks that are genuinely independent and parallelizable, such as a
-wide multi-file investigation. Do not delegate work you can finish in a handful of tool
-calls, and do not use subagents to verify your own work. If one subagent is enough, use
-one.
+Delegate to a subagent only for large tasks that are genuinely independent and
+parallelizable, such as a wide multi-file investigation. Do not delegate work you can finish
+yourself in a handful of tool calls, and do not use subagents to verify or double-check your
+own work. If one subagent can complete the task, use one rather than several, and keep spawn
+counts low.
 ```
+
+In Claude Code and the Agent SDK, the hard caps are the
+`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` and `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`
+environment variables and the SDK's `max_budget_usd` option.
 
 ### Correction narration
 
+Opus 5 narrates corrections to its own earlier statements more than earlier models:
+
 ```text
 Only correct an earlier statement when the error would change the user's code,
-conclusions, or decisions. State corrections plainly and briefly, then continue. For slips
-that change nothing, fix and move on.
+conclusions, or decisions. State corrections plainly and briefly, then continue the task.
+For slips that change nothing for the user, make the fix and move on without noting it.
 ```
 
 ### Code review
 
-Opus 5 follows a stated bar literally. If a review prompt says "only high severity" or "be
-conservative", it reports less.
+Opus 5 follows a stated bar literally, so "only report high-severity issues" or "be
+conservative" makes it report less. Ask for coverage and filter in a later pass:
 
 ```text
-Report every issue you find, including low-severity and uncertain ones. Do not filter for
-importance at this stage. Include a confidence level and estimated severity so a
-downstream pass can rank them.
+Report every issue you find, including ones you are uncertain about or consider
+low-severity. Do not filter for importance or confidence at this stage - a separate
+verification step will do that. Your goal here is coverage: it is better to surface a
+finding that later gets filtered out than to silently drop a real bug. For each finding,
+include your confidence level and an estimated severity so a downstream filter can rank
+them.
 ```
 
-### Evidence hierarchy
+Review accuracy holds at lower effort, so a fast pass at review time and a thorough pass
+later both work.
+
+### Visual inputs
+
+For charts, documents, diagrams, and UI replication, give the subagent tools to analyze,
+crop, and check its own work. On this model tool use is a more cost-effective lever than
+more thinking. Re-test vision workarounds written for earlier models before keeping them.
+
+### Evidence and parallel work
 
 ```text
 Inspect the implementation and its tests for code behavior. Retrieve current sources for
 facts that change over time. Use secondary summaries only to locate primary material.
 ```
 
-### Parallel work
-
 ```text
 Run independent reads, searches, and analyses in parallel. Keep dependent decisions and
 mutations sequential.
 ```
 
-## Avoid
+### Thinking disabled
 
-- Verification scaffolding. Opus 5 already verifies and self-corrects. "Include a final
-  verification step", "double-check your answer", and "use a subagent to verify" cost
-  tokens without improving results. Name a concrete acceptance check instead when one is
-  genuinely required.
-- Reasoning choreography such as "generate five hypotheses, then score them" on ordinary
-  work. Research agents are the exception: competing hypotheses with tracked confidence
-  are recommended for multistep research.
-- Duplicated rules restated in slightly different wording across prompt sections.
-- Instructions telling the model not to think or not to reason. They increase leakage of
-  internal tags.
-
-## Effort
-
-Effort levels are `low`, `medium`, `high` (default), `xhigh`, `max`. Lowering effort
-reduces thinking, not the length of what the model says; prompt for concision separately.
-
-- `low` and `medium` are the primary cost control wherever quality holds. Prefer thinking
-  on at `low` over thinking off at similar cost.
-- Thinking can be disabled only at `high` or below. If it must stay disabled, add the
-  tool-call sentence below, because the model can occasionally write a tool call as visible
-  text or emit internal XML tags.
+Prefer adaptive thinking at `low` effort: on most tasks it beats thinking disabled at a
+similar cost. If a route must keep thinking off, two artifacts can appear: a tool call
+written as plain text that never runs, and `<thinking>` or other internal tags in the reply.
+One instruction covers both:
 
 ```text
 When you use a tool, you may say a brief sentence first. If no tool can express what the
 user asked for, say so instead of guessing. Do not include internal or system XML tags in
 your response.
 ```
+
+Do not name thinking tags in the prompt. The general wording works better.
+
+## Avoid
+
+- Verification instructions such as "include a final verification step" or "use a subagent
+  to verify". Opus 5 verifies its own work, and these cause over-verification. Removing them
+  costs no quality. Name a concrete acceptance check when one is required.
+- Re-check phrasing such as "double-check your answer" or "re-verify before responding". It
+  stacks on the model's own self-correction and adds cost without improving results.
+- Step-by-step reasoning scripts such as "generate five hypotheses, then score them" on
+  ordinary work. Opus 5 plans without them.
+- Asking the model to write out its thinking or reasoning, verbatim or in a fixed format. It
+  can be declined as `reasoning_extraction`. Ask for a short explanation of the answer, or
+  read `display: "summarized"` thinking.
+- Rules telling the model not to think or not to reason. With thinking disabled they increase
+  tag leakage.
+- "Delegate more" guidance carried over from Opus 4.8.
+- `temperature`, `top_p`, `top_k`, `budget_tokens`, and an assistant prefill. Each returns a
+  400.
+
+## Effort
+
+Effort levels are `low`, `medium`, `high` (default), `xhigh`, `max`.
+
+- Start at `high`, then sweep down. `low` and `medium` give strong quality at a fraction of
+  the tokens and latency, so use them as the main control for cost and response time
+  wherever quality holds.
+- Step up to `xhigh` for demanding coding and agentic work. Keep `max` for measured wins: it
+  can show diminishing returns and overthink simpler tasks.
+- Effort changes how much the model thinks. It does not reliably change reply length, so
+  prompt for concision separately.
+- At `xhigh` or `max`, set `max_tokens` to at least 64K.
+- Thinking can be disabled only at `high` or below. Prefer thinking on at `low` over
+  thinking off at a similar cost.
+- Effort values carried over from an earlier model rarely fit. Re-run the sweep.
 
 ## Delegation template
 
@@ -146,16 +211,47 @@ Return:
 
 ## Failure-mode adjustments
 
-- Scope creep: add the scope block above.
-- Over-verification or repeated re-checking: delete the verification instructions in the
-  prompt rather than adding a stopping rule on top of them.
-- Too many subagents: add the delegation rule above.
-- Long visible responses: prompt for concision directly, and repeat one short reminder near
-  the end of a long system prompt.
-- Too much narration during agentic work: give the cadence block above rather than a ban.
-- Low review recall: remove the severity filter from the finding stage.
+- Scope creep: add the scope block.
+- Over-verification or repeated re-checking: delete the verification and re-check
+  instructions rather than adding a stopping rule on top of them.
+- Too many subagents: add the delegation block, or set a hard cap in the harness.
+- Long replies: add the length block, plus the one-line reminder near the end of a long
+  system prompt.
+- Too much narration during agentic work: add the narration block instead of a ban.
+- Long documents on disk: add the written-deliverables block.
+- Correction thrash: add the correction block.
+- Low review recall: remove the severity bar and ask for coverage.
+- `stop_reason: "refusal"` with `reasoning_extraction`: remove instructions to show
+  reasoning in the reply.
+- A tool call as plain text, or internal tags in the reply: turn thinking on and lower
+  effort, or add the thinking-disabled instruction.
+- Truncated reply: raise `max_tokens`, since thinking counts toward it.
+- 400 on `thinking: {"type": "disabled"}`: lower effort to `high` or below, or turn thinking
+  on.
 
 ## Provenance
 
-Last cross-checked: 2026-09-12. Sourced from the official Claude Opus 5 prompting guide and
-the cross-model Claude prompting best practices.
+Last cross-checked: 2026-11-13. Sources:
+
+- Prompting Claude Opus 5, fetched 2026-11-13:
+  https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5
+  Source of the scope, length, `tone_preference`, narration, written-deliverables,
+  delegation, correction, and thinking-disabled blocks, the Claude Code subagent caps, the
+  verification and re-check rules, the `reasoning_extraction` rule, the vision guidance, the
+  effort guidance, and the thinking-disabled facts.
+- Prompting Claude Opus 4.8, fetched 2026-11-13:
+  https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-4-8
+  Source of the code-review block text. The Opus 5 page states the same rule without a
+  snippet.
+- Effort, fetched 2026-11-13:
+  https://platform.claude.com/docs/en/build-with-claude/effort
+  Source of the 64K `max_tokens` starting point at `xhigh` and `max`, and confirms the
+  effort guidance.
+- Claude Opus 5.5 migration guide, fetched 2026-11-13:
+  https://platform.claude.com/docs/en/models/opus-5-5/migration-guide
+  Source of the prefill 400 ("Claude Opus 4.6 and later Opus models") and the sampling 400.
+- Migrating to Claude Opus 5 (copy bundled with the claude-api skill, read 2026-11-13):
+  source of the Avoid item about "delegate more" guidance carried over from Opus 4.8.
+
+The evidence and parallel-work blocks, the reasoning-script Avoid item, and the "Delegation
+template" are this skill's own heuristics.
