@@ -4,7 +4,8 @@ Rules for writing a task prompt for an agent or subagent running GPT-6 Sol (`gpt
 or GPT-6 Luna (`gpt-6-luna`).
 
 The blocks below are OpenAI's GPT-6 family guidance, written from GPT-6 Astra's behavior.
-Evaluate them on Sol or Luna.
+Evaluate them on Sol or Luna. The two share one API surface, so every rule here applies to
+both.
 
 What OpenAI does say about these two models:
 
