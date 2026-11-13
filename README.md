@@ -64,7 +64,7 @@ not install anything itself.
 
 ### model-prompting-guides
 
-Each reference in `plugins/husniadil-skills/skills/model-prompting-guides/references/` has the same shape. The Haiku references also open with a short section of model facts (what changed, or what is documented) before item 1:
+Each reference in `plugins/husniadil-skills/skills/model-prompting-guides/references/` has the same shape. Most open with the model's API facts or what changed from the previous version before item 1, as unheaded text or, in the Haiku references, as their own section:
 
 1. Always include
 2. Include when applicable

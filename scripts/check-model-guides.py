@@ -5,8 +5,9 @@ Each reference under model-prompting-guides/references/ must have these sections
 in this order, as level-2 headings: Always include, Include when applicable,
 Avoid, Effort, Delegation template, Failure-mode adjustments, Provenance. A
 heading matches by prefix, so "Effort: thinking budget instead" counts as Effort.
-Sections before "Always include" are allowed (the Haiku guides use one). The
-Provenance must carry a "Last cross-checked: YYYY-MM-DD" line.
+Sections before "Always include" are allowed (the Haiku guides use one, others
+open with unheaded text). The Provenance must carry a "Last cross-checked:
+YYYY-MM-DD" line.
 
   python3 scripts/check-model-guides.py                # every reference
   python3 scripts/check-model-guides.py <file.md>...   # only these
