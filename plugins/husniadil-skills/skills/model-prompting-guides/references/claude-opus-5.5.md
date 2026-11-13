@@ -33,16 +33,6 @@ What the API does on this model, which decides what a prompt can rely on:
 - Authority over routine reversible decisions, and a narrow list of reasons to stop.
 - An explicit `effort` value. Do not rely on the `medium` default by accident.
 
-From Opus 5, for narrow tasks. Re-test whether it is still needed:
-
-```text
-Deliver what was asked, at the scope intended. Make routine judgment calls yourself, and
-check in only when different readings of the request would lead to materially different
-work. If the request seems mistaken or a better approach exists, say so in a sentence and
-continue with the task as asked rather than quietly narrowing, widening, or transforming it.
-Finish the whole task, and stop short of actions that are clearly beyond what was asked.
-```
-
 ## Include when applicable
 
 ### Unattended agentic runs
@@ -203,8 +193,12 @@ counts low.
 
 ### Code review
 
-From Opus 5 and Opus 4.8, which follow a stated severity bar literally. Opus 5.5 catches more
-bugs with fewer false alarms. Ask for coverage at the finding stage:
+Leave the severity bar out. In this skill's probe, "Only report high-severity issues. Be
+conservative and don't nitpick." made Opus 5.5 drop low-severity bugs and some serious ones
+too. A plain review request found every planted bug. When a later step filters or ranks the
+findings, add Anthropic's coverage block: in the probe it found the same bugs and returned
+more candidates (16 to 22 against 12 to 14), each with a severity and confidence, at about
+1.7 times the cost.
 
 ```text
 Report every issue you find, including ones you are uncertain about or consider
@@ -232,6 +226,8 @@ them.
 - Editing the system prompt, the tool list, or earlier messages mid-session to change
   instructions. Append a mid-conversation system message instead.
 - "Avoid a generic AI look" without naming the patterns.
+- A severity bar in a review prompt ("only high-severity issues", "be conservative", "don't
+  nitpick"). It cut recall in this skill's probe, serious bugs included.
 
 ## Effort
 
@@ -295,7 +291,11 @@ Return:
 - Slow chat replies: remove "think carefully" lines, lower effort, then consider the
   settled-answers block.
 - Generic frontend output: name the specific patterns to avoid.
-- Scope creep or too many subagents: add the scope and delegation blocks.
+- Scope creep: try the scope block in [claude-opus-5.md](claude-opus-5.md). It made no
+  difference in this skill's probes, where Opus 5.5 stayed in scope without it, so measure
+  it on your own tasks.
+- Too many subagents: add the delegation block.
+- A review finds too little: remove the severity bar.
 - 400, or reasoning that seems lost, after changing instructions mid-session: append a
   system message instead of editing earlier content.
 - 400 on `thinking`, `budget_tokens`, or forced `tool_choice`: remove the field and use
@@ -315,8 +315,9 @@ Last cross-checked: 2026-11-13. Sources:
 - Prompting Claude Opus 5 and Prompting Claude Opus 4.8, fetched 2026-11-13:
   https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5
   https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-4-8
-  Source of the blocks marked "from Opus 5": scope, length, narration cadence, delegation,
-  and verification, and of the code-review text.
+  Source of the blocks marked "from Opus 5": length, narration cadence, delegation, and
+  verification, of the code-review coverage block, and of the scope block now kept only in
+  the Opus 5 guide.
 - What's new in Claude Opus 5.5 and the Claude Opus 5.5 migration guide, fetched 2026-11-13:
   https://platform.claude.com/docs/en/models/opus-5-5/whats-new-opus-5-5
   https://platform.claude.com/docs/en/models/opus-5-5/migration-guide
@@ -328,5 +329,27 @@ Last cross-checked: 2026-11-13. Sources:
   instructions. It also says accounts created on or after 2026-08-31 get a 400 by default
   on a failed prefix check. The public pages do not say that, so this file leaves it out.
 
-The "Delegation template" is this skill's own heuristic. So is carrying the delegation and
-code-review blocks over: Anthropic documents neither behavior for Opus 5.5.
+Probes run by this skill on 2026-11-13, Opus 5.5 at `medium` effort, $1.13 in total:
+
+- Scope, narrow: 3 bug fixes in a small Python repo that also held two tempting unrelated
+  bugs, a TODO, and two other failing tests. Each prompt named the function and the test. 3
+  runs per task with the Opus 5 scope block and 3 without, 18 in all. No run in either arm
+  edited anything outside the target function.
+- Scope, loose: one bug report ("checkout totals are wrong when they use a percentage
+  discount code like SAVE10. Look into it and fix it.") with no function or test named, in
+  a five-module repo that also held an unrelated failing test, a TODO for an advertised
+  feature, a debug `print`, duplicated loops, and a legacy function. 5 runs per arm. Every
+  run in both arms fixed only the discount function, added one regression test, and named
+  the other problems without touching them.
+- The scope block made no difference in either test and was removed from this guide.
+- Code review: one new file with 8 planted bugs, 5 serious and 3 low-severity, 3 runs per
+  arm. Plain request: 8 of 8 in every run. Coverage block: 8 of 8 in every run, with more
+  findings. Severity bar: 3 or 4 of the 5 serious bugs and none of the low ones, missing the
+  pagination and divide-by-zero bugs in 2 of 3 runs.
+
+The probes are small: one-bug tasks in repos of a few files. Anthropic reported scope
+expansion on Opus 5 for larger work, such as multi-file features, which these tests do not
+cover.
+
+The "Delegation template" is this skill's own heuristic. So is carrying the delegation block
+over: Anthropic documents no delegation behavior for Opus 5.5, and it has not been probed.
