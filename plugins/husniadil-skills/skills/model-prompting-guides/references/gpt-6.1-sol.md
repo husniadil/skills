@@ -6,93 +6,82 @@ Rules for writing a task prompt for an agent or subagent running GPT-6.1 Sol
 The blocks below are OpenAI's GPT-6 family guidance, written from GPT-6 Astra's behavior.
 Evaluate them on GPT-6.1 Sol.
 
-What OpenAI does say about GPT-6.1 Sol:
+What OpenAI says about GPT-6.1 Sol:
 
-- It upgrades GPT-6 Sol and nearly matches Astra on agentic coding, computer use, and
-  professional work.
-- It is more transparent about its limitations and more reliable at respecting user intent
-  and safety constraints than GPT-6 Sol. In OpenAI's evaluations it has lower failure
-  rates than GPT-6 Sol on saying when a search tool is broken, respecting explicit
-  restrictions, and avoiding unauthorized outcomes during agentic tasks.
-- Its largest factuality gain over GPT-6 Sol is at `low` effort.
+- It upgrades GPT-6 Sol and comes close to Astra on complex coding, computer use, and
+  professional work, at a lower cost. OpenAI suggests comparing it with Astra on the same
+  task to judge the tradeoff.
+- It is more transparent about its limitations than GPT-6 Sol, and more reliable at
+  respecting user intent and safety constraints, including saying when a search tool is
+  broken and keeping to explicit restrictions during agentic tasks.
 
-What changed from GPT-6 Sol:
+What the API does on this model, which decides what a prompt can rely on:
 
-- `none` is not supported, where GPT-6 Sol accepts it, and OpenAI says to use `low`
-  instead. `minimal` is not supported either, and GPT-6 Sol did not list it.
-- Chat Completions takes requests without tools only. GPT-6 Sol allowed function calling
-  there at `none`. Tool calling needs the Responses API.
-- It supports the Responses API's Multi-agent beta, which GPT-6 Sol is not listed for.
-- Cached input is billed at 5% of the input rate, against 10% for GPT-6 Sol, so a stable
-  prompt prefix saves more.
+- `reasoning.effort` takes `low`, `medium` (default), `high`, `xhigh`, and `max`. `none` and
+  `minimal` are not supported. A request moving from either starts at `low`.
+- Tool calling needs the Responses API. Chat Completions takes requests without tools.
+- `temperature`, `top_p`, and `top_logprobs` are not supported.
+- The Responses API's Multi-agent beta is available (see Subagents).
+- `reasoning.context: "all_turns"` lets the model reuse compatible reasoning from earlier
+  turns.
+- Cached input is billed at 5% of the input rate, so a stable prompt prefix saves more
+  than on GPT-6 Sol.
+- Mid-turn steering over a WebSocket connection and async tool calling are available.
 
 ## Always include
 
-From the GPT-6 family model guide:
+- The outcome and what done includes, such as getting the change running, inspecting the
+  result, and fixing what fails.
+- Decision boundaries: what it can do without asking and what needs approval, in place of
+  blanket "always ask" rules.
+- Permission to act when the request implies it.
+- What a useful response looks like, such as a short handoff covering what changed, what
+  was checked, and what still needs attention.
 
-- A clear assignment: the result wanted, who it is for, the relevant context and
-  constraints, and what counts as done.
-- Decision boundaries: which actions can proceed independently and which need approval,
-  in place of blanket "always ask" rules.
-- What "done" includes, such as implementing the change, running it, inspecting the
-  result, and fixing failures, plus any decisions that need review.
-- What a useful response looks like, for example plain language, technical detail suited
-  to the audience, and a short handoff covering what changed, what was checked, and what
-  still needs attention.
+```text
+You should infer the user's intent and task scope from the instructions and prior
+conversation context. Your job is to bias towards action and carry the user's intended
+task to completion.
+
+When the user expresses intent to perform new work or fix an existing issue, persist until
+the user's intended goal is complete. Progress autonomously towards the user's goal (e.g.
+creating isolated worktrees / checkouts if needed, resolving merge conflicts, read-only
+actions, creating draft PRs etc.) unless they are clearly destructive or irreversible.
+```
 
 Put stable instructions and reference material before the details that change per task,
-and keep tool definitions consistent, so the prompt prefix is reused from cache.
+and keep tool definitions the same across requests, so the prefix is reused from cache.
 
 ## Include when applicable
 
-### The model stops to ask, or stops at a plan
-
-OpenAI observed this on Astra, which asks for clarification where earlier models assumed.
-These are its family starting points for more autonomous work.
-
-```text
-Infer the user's intent and task scope from the instructions and prior conversation
-context. Bias towards action and carry the user's intended task to completion. When the
-user asks for new work or a fix, persist until the goal is complete. Progress autonomously
-unless an action is clearly destructive or irreversible.
-```
+### The model stops at acknowledging, at a plan, or at a partial result
 
 ```text
 When the user's prompt indicates a request for action, such as "can you...", "I want
-to...", or "help me...", treat it as an instruction to do the work. Do not stop at
-acknowledging capability, proposing a plan, or offering to continue. If a task requires
+to...", "help me..." and similar expressions, treat these as instructions to do the work
+and take action. Do not stop at acknowledging capability (e.g. "Yes..."), proposing a plan,
+or offering to continue. Do not settle for a partial or "helpful enough" solution that does
+not fully satisfy the user's task to save time, effort or tokens. If a task requires
 sustained work, complete all the necessary work until the intended outcome is fulfilled.
 ```
 
-```text
-Before asking the user clarifying questions, complete the work that is already authorized
-from context, so the user approves a concrete, reviewable result. You don't need
-permission for reversible tasks, read-only actions, reviews or fixes, or anything
-authorized earlier in the session or strongly implied by the task. Do not introduce
-unsolicited warnings, disclaimers, approval flows, or safety checklists due to
-hypothetical risk.
-```
-
-### Skills and instruction files
-
-Astra is sensitive to instructions in skills and files such as `AGENTS.md`, and OpenAI
-strongly recommends auditing what the model can reach. For the family, it recommends
-short skill descriptions that say when each skill runs, supporting detail loaded only when
-needed, and guidance in place of rigid recipes. In `AGENTS.md`, say when each document or
-test is relevant, and authorize safe routine workflows explicitly.
+### Approval only at the end
 
 ```text
-The user's instructions take precedence over guidelines provided in a skill. If explicit
-user instructions conflict with a skill's instructions, prioritize the user's
-instructions.
+Before asking the user clarifying questions, you should complete the work that is already
+authorized from context and necessary to make the proposed action concrete and reviewable.
+The user should be approving a concrete, reviewable result. For example, before deploying a
+change, writing to an external application, merging a PR or publishing a site, do all the
+required work first so that user approval is the final step. You don't need user permission
+for reversible tasks, read-only actions, reviews or fixes, or anything for which
+authorization is provided earlier in the session or strongly implied from the task
+instruction.
+
+Do not introduce unsolicited warnings, disclaimers, approval flows, or safety/compliance
+checklists due to hypothetical risk.
 ```
 
-```text
-If a skill causes you to ask for permission or confirmation, pause, leave requested work
-unfinished, or diverge from the user's intent, name and link the exact SKILL.md file you
-read, quote the relevant instruction, and briefly explain how it applies. Distinguish
-explicit skill requirements from your interpretation of guidelines.
-```
+### A safe workflow it keeps asking about
 
 ```text
 The local tests use disposable fixtures and have no production access. Run them, fix
@@ -100,14 +89,28 @@ failures caused by the requested change, and rerun affected tests without asking
 approval at each step.
 ```
 
-### Subagent delegation
+### Skills and instruction files
 
-GPT-6.1 Sol supports the Responses API's Multi-agent beta. With `multi_agent.enabled`, it
-can assign independent work, such as investigating different parts of a codebase, to
-subagents and combine their findings into the final response. The API appends its own
-orchestration instructions to the root agent and every subagent. Those cannot be edited,
-so write your developer message as an addition to them, and use it to say when to spawn
-subagents:
+```text
+The user's instructions take precedence over guidelines provided in a skill. If explicit
+user instructions conflict with a skill's instructions, prioritize the user's instructions.
+```
+
+When a skill or instruction file has already derailed a run:
+
+```text
+If a skill causes you to ask for permission or confirmation, pause, leave requested work
+unfinished, or diverge from the user's intent, name and link to the exact SKILL.md file you
+read, quote the relevant instruction, and briefly explain how it applies. Distinguish
+explicit skill requirements from your interpretation of guidelines.
+```
+
+### Subagents
+
+With the Multi-agent beta (`OpenAI-Beta: responses_multi_agent=v1`), the root agent can
+spawn subagents for independent work and combine their results. The API injects its own
+orchestration instructions into the root agent and every subagent. Your developer message
+is added to them, and it is where you say when to spawn:
 
 ```text
 Do not spawn subagents unless the user explicitly asks for subagents, delegation, or
@@ -119,85 +122,86 @@ Proactive Multi-agent delegation is active. Use subagents when parallel work wou
 materially improve speed or quality.
 ```
 
-OpenAI recommends Multi-agent for work that splits into bounded, independent tasks, and
-one agent where each step depends on the last, the task is small, or agents would contend
-over the same mutable resource. In a harness of your own, the family block for Astra,
-which may delegate less than wanted, is:
+Use Multi-agent when the work splits into independent, bounded tasks, separate context
+improves focus, or parallel exploration saves wall-clock time. Prefer one agent when each
+step depends on the last, the task fits one short run, agents would contend over the same
+mutable resource, or you need a fixed execution graph. Subagents add tokens.
+`max_concurrent_subagents` defaults to 3 across the whole tree.
+
+With Multi-agent on, `/responses/compact`, `reasoning.summary`, and `max_tool_calls` are not
+supported, `configuration_update` does not apply, and async tools must not be combined with
+parallel tool calls.
+
+In a harness of your own instead, the family blocks are:
 
 ```text
-If at any point you can parallelize work by delegating tasks to another agent, whether you
-are the root or a subagent, do so using collaboration tools if it could save time or
-improve quality.
+If at any point you can parallelize work by delegating tasks to another agent (no matter if
+you are the root or subagent), you should do so using collaboration tools if it could save
+time or improve quality.
 ```
 
 ```text
 Messages that you send to other agents and your final answer may be read by a human, so
-ensure they are legible. Always put proper spaces between words and numbers.
+ensure they are legible. Always put proper spaces between words and/or numbers.
+```
+
+### Testing on small changes
+
+```text
+Do not write tests for reversible, low-impact changes that mirror the implementation. If
+you do choose to verify your work with tests, make sure that the tests are meaningful and
+necessary to verify implementation.
+
+Run tests appropriate to the change and complete required checks. Once those pass, broaden
+or repeat testing only when new changes, failures, or unresolved concerns justify it;
+otherwise, continue toward completing the task.
 ```
 
 ### Writing style
 
-Astra tends to lists, tables, and Markdown. If the application needs prose with less
-formatting:
+When the reader needs prose with less formatting:
 
 ```text
-Default to clear, concise paragraphs, each developing one main idea. Use lists only when
-the information is genuinely parallel, sequential, or easier to compare, and avoid nested
-lists. Use plain, simple language: familiar words, concrete examples, and precise verbs.
-Prefer active voice and direct statements. State the main point clearly and early.
+Default to using clear, concise paragraphs, each developing one main idea. Use lists only
+when the information is genuinely parallel, sequential, or easier to compare, and avoid
+nested lists unless the hierarchy cannot be expressed clearly in prose. Use plain, simple
+language: familiar words, concrete examples, and precise verbs. Prefer active voice and
+direct statements.
+
+Make sure to state the main point clearly and early, then develop it with the explanation
+and detail the reader needs. Let each sentence build on what came before. Develop the
+points that matter and provide enough support to be useful.
 ```
 
-### Testing
+### Async tools
 
-Astra tends to test thoroughly before calling a coding task complete, which on a small
-change can mean broader tests than it needs.
-
-```text
-Do not write tests for reversible, low-impact changes that mirror the implementation. Run
-tests appropriate to the change and complete required checks. Once those pass, broaden or
-repeat testing only when new changes, failures, or unresolved concerns justify it.
-```
-
-### Long-running work in the API
-
-Mid-turn steering, over a WebSocket connection, lets a correction reach the GPT-6 family
-while it works. It does not cancel tools already started or undo earlier actions.
-Asynchronous tool calling, listed for GPT-6 Astra and later models, lets the model keep
-working while your application runs a slow tool. Instruct the model to continue
-independent work and to wait before a step that needs the result. In Multi-agent mode,
-do not combine async tools with parallel tool calls.
+When a tool is marked `async`, tell the model to continue independent work and to wait
+before a step that needs the result.
 
 ## Avoid
 
-- Blanket "always ask" rules. Replace them with clear decision boundaries.
-- Overly specific recipes. OpenAI's family guide says models now handle nuance and
-  ambiguity well enough that overly specific guidance can hinder results.
-- Long or overlapping skill descriptions that push the model to load a skill the task
-  does not need.
-- Telling the model to read a stack of documents before every edit. Say when each one is
-  relevant instead.
+- Blanket "always ask" rules. Replace them with decision boundaries.
+- Rigid step-by-step recipes.
+- Requiring a stack of documents before every edit. Say when each one is relevant.
+- Long or overlapping skill descriptions that make the model load a skill the task does
+  not need.
 - `none` or `minimal` effort, `temperature`, `top_p`, and `top_logprobs`.
 
 ## Effort
 
-Reasoning levels are `low`, `medium` (default), `high`, `xhigh`, `max`. `none` and
-`minimal` are not supported, and OpenAI says to start a request that used either at `low`.
-The family model guide maps levels to work:
+Reasoning levels are `low`, `medium` (default), `high`, `xhigh`, `max`. OpenAI's model
+selection guide suggests:
 
-- `low`: routine tasks, such as extracting facts or making small edits.
-- `medium`: work requiring judgment, such as planning a feature or comparing options.
-- `high`: difficult debugging, deeper analysis, or careful review.
-- `xhigh` and `max`: test when `high` falls short, and keep only if the gain justifies the
-  time and cost.
+- `medium`: complex technical work and coordinated deliverables you expect to revise.
+- `xhigh`: polished deliverables, connected visual systems, and decisions built from
+  conflicting evidence.
 
-For GPT-6.1 Sol, OpenAI's model selection guide suggests `medium` for complex technical
-work and coordinated deliverables you expect to revise, and `xhigh` for polished
-deliverables, connected visual systems, and decisions built from conflicting evidence.
+Use `xhigh` only when evals show a clear benefit. `reasoning.mode: "pro"` in the Responses
+API gives more model work on difficult tasks at higher latency, independent of effort.
 
-- Tool calling needs the Responses API. Chat Completions takes requests without tools.
-- To change effort between responses, add a `configuration_update` item and leave
-  request-level `reasoning.effort` unchanged, which keeps the prompt prefix cached. It
-  works in standard, single-agent requests.
+To change effort between responses in a single-agent request, add a `configuration_update`
+input item and leave request-level `reasoning.effort` unchanged, so the prompt prefix stays
+cached.
 
 ## Delegation template
 
@@ -209,7 +213,7 @@ Context and constraints:
 [What the task needs to know. What must not change.]
 
 Decision boundaries:
-[What can be decided and done without asking. What needs approval first.]
+[What it can decide and do without asking. What needs approval first.]
 
 Delegation:
 [When to spawn subagents, if at all.]
@@ -223,11 +227,12 @@ Return:
 
 ## Failure-mode adjustments
 
-- A request at `none` carried over from GPT-6 Sol, or at `minimal` from an older model:
-  start at `low` and compare on representative tasks.
+- 400 on effort carried over from GPT-6 Sol at `none`, or from an older model at
+  `minimal`: start at `low` and compare on representative tasks.
 - Function calls through Chat Completions: move the request to the Responses API.
-- Asks before starting, or stops at a plan: add the autonomy blocks above, and define done
-  as a finished result.
+- Asks before starting: add the autonomy block, and name what it may do without asking.
+- Stops at a plan or a partial result: add the follow-through block, and spell out what
+  done includes.
 - A skill or instruction file derails the task: add the precedence block, then the
   name-and-quote block.
 - Too many or too few subagents under Multi-agent: say when to spawn them in the developer
