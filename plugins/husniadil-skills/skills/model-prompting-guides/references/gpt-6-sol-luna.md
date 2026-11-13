@@ -3,14 +3,8 @@
 Rules for writing a task prompt for an agent or subagent running GPT-6 Sol (`gpt-6-sol`)
 or GPT-6 Luna (`gpt-6-luna`).
 
-OpenAI publishes no prompting guidance written for Sol or Luna. Its GPT-6 guide gives one
-set of prompts "as a starting point across the GPT-6 model family", says they address
-behavior observed with GPT-6 Astra, and asks you to evaluate them on the model you run. Its
-GPT-6 family model guide adds what an assignment should contain. So the blocks below are
-family guidance, not observed Sol or Luna behavior, and each behavior note names the model
-it was observed on. Sol and Luna share one API surface and one set of guidance, so they
-share this file. GPT-6.1 Sol, the newer Sol, has [its own file](gpt-6.1-sol.md), and so
-does [GPT-6 Astra](gpt-6-astra.md).
+The blocks below are OpenAI's GPT-6 family guidance, written from GPT-6 Astra's behavior.
+Evaluate them on Sol or Luna.
 
 What OpenAI does say about these two models:
 

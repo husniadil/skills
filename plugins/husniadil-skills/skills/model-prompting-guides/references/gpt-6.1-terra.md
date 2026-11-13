@@ -3,14 +3,8 @@
 Rules for writing a task prompt for an agent or subagent running GPT-6.1 Terra
 (`gpt-6.1-terra`).
 
-OpenAI publishes no prompting guidance written for GPT-6.1 Terra. Its GPT-6 guide gives one
-set of prompts "as a starting point across the GPT-6 model family", says they address
-behavior observed with GPT-6 Astra, and asks you to evaluate them on the model you run. Its
-GPT-6 family model guide adds what an assignment should contain. So the blocks below are
-family guidance, not observed GPT-6.1 Terra behavior, and each behavior note names the model
-it was observed on. GPT-6.1 Sol, the larger model in the same release line, has
-[its own file](gpt-6.1-sol.md). [GPT-6 Astra](gpt-6-astra.md) and
-[GPT-5.6 Terra](gpt-5.6.md) have theirs.
+The blocks below are OpenAI's GPT-6 family guidance, written from GPT-6 Astra's behavior.
+Evaluate them on GPT-6.1 Terra.
 
 What OpenAI says about GPT-6.1 Terra:
 
