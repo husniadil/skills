@@ -41,9 +41,12 @@ The current date is {{current_date}}.
 ```
 
   Send the same `system` and `tools` on every later request in that conversation. If the
-  conversation continues on a later day, give the new date in the newest user turn. A
-  change to `system` or `tools` in a conversation that sends thinking blocks back returns
-  a 400 (see Changing instructions mid-run).
+  conversation continues on a later day, change `system` to the new date. In our probe
+  (Haiku 5.5, thinking blocks in history, 10 samples), the new date in the newest user turn
+  was ignored 10 of 10 times, and the changed `system` was used 10 of 10 times with no 400.
+  The 400 that the migration guide describes did not appear on that account. Other changes
+  to `system` or `tools` in a conversation that sends thinking blocks back still risk a 400
+  (see Changing instructions mid-run).
 
 ## Include when applicable
 
@@ -142,7 +145,8 @@ message right after a tool result, can be treated as untrusted text and ignored.
   `messages` returns a 400. On accounts created before August 31, 2026, 00:00 UTC, the
   error comes only on requests that set `thinking.block_binding.prefix_mismatch_behavior`.
 - Keep the history append-only. The snippets in this file are for new conversations. Do
-  not copy them into `system` of a conversation you resume.
+  not copy them into `system` of a conversation you resume. The date line is the one
+  exception (see Always include).
 - To change instructions in a running conversation, append `{"role": "system", ...}` to
   `messages`. It must follow a user message (or an assistant message that ends in
   server-tool use). It must be the last entry, or be followed by an assistant turn. It
@@ -322,3 +326,8 @@ Last cross-checked: 2026-11-13. Sources, all read on 2026-11-13:
   The copy bundled with the claude-api skill. Source of the 400 errors, the sampling rules,
   the refusal categories, the account and model binding of thinking blocks, and the
   mid-conversation system message rules.
+- Probes, run 2026-11-13 on one account. Wording: the "must" and imperative registers, 10
+  samples each, both 10 of 10 (a ceiling, so no difference shown). Date: the newest-turn rule
+  and the changed-`system` rule, 10 samples each with thinking blocks in history, and 10 each
+  without. The thinking-history result is the one the date section relies on. The scripts stay
+  in the session scratchpad, not in the repository.
