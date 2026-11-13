@@ -9,7 +9,7 @@
     "url": "git+https://github.com/husniadil/skills.git"
   },
   "scripts": {
-    "lint": "python3 scripts/check-skill-descriptions.py"
+    "lint": "python3 scripts/check-skill-descriptions.py && python3 scripts/check-model-guides.py"
   },
   "keywords": [
     "pi-package",
