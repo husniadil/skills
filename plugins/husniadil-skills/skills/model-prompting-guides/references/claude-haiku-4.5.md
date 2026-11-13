@@ -130,10 +130,13 @@ effort, so check for the same here.
 
 - Vague triggers: "Use tools if helpful", "check things as needed", "consider making the
   change".
-- "Think harder" and repeated self-check instructions. Raise the thinking budget instead,
-  within `max_tokens`.
+- "Think harder" in place of a thinking budget. Prose like "think thoroughly" can help, but
+  the budget is the lever, kept within `max_tokens`. Repeated self-check instructions: one
+  line naming the criteria is enough.
 - Negative formatting instructions. State the wanted shape.
-- Requests for hidden chain-of-thought. Ask for conclusions, evidence, and assumptions.
+- Asking for the reasoning as output. Ask for conclusions, evidence, and assumptions. With
+  thinking off, asking the model to think the problem through before it answers, and to put
+  the answer in tags, is the documented fallback.
 - `effort` in the request, and `temperature`, `top_p`, or `top_k` used to tune output.
 - A thinking budget below 1024, or one at or above `max_tokens`.
 - Budget countdowns or token-budget tags written into the prompt. The API injects its own.
@@ -204,6 +207,10 @@ Last cross-checked: 2026-11-13. Sources:
   source of the 64K maximum output, the `effort` error, the budget minimum and the
   `max_tokens` rule, the sampling-parameter change on API version `2026-10-21`, and the
   prefill and refusal differences from Haiku 5.5.
-- Cross-model blocks (scope, examples, long context, parallelism, verification, analysis-only
-  tasks): heuristics from cross-model Claude prompting practice. They were not re-checked
-  against a primary source in this pass.
+- Prompting best practices, fetched 2026-11-13:
+  https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices
+  Confirms the analysis-only block (its conservative-action sample), scope, examples (3 to 5,
+  in tags), long-context placement and source tags, parallelism, the context-awareness sample
+  for Haiku 4.5, the self-check line, and positive format wording. Its "think thoroughly" and
+  manual chain-of-thought advice changed two Avoid bullets. The delegation template and the
+  vague-trigger bullet are not covered by the page and stay heuristics.
