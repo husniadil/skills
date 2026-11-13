@@ -34,9 +34,10 @@ agent definition when you control one.
 
 ## Always include
 
-- For agentic work, the autonomy block below. Without it the model sometimes describes the
-  next step instead of doing it ("Next, I'll ...") or asks permission for a step the request
-  already covered. Its opening sentence carries much of the effect, so keep it as written.
+- For long or asynchronous agentic work, the autonomy block below. On such work the model
+  sometimes describes the next step instead of doing it ("Next, I'll ...") or asks
+  permission for a step the request already covered. A short task that a person watches
+  can do without it, since a reply of "continue" recovers it there. Its opening sentence carries much of the effect, so keep it as written.
   If the subagent must stop for specific confirmations, list them in a sentence after it.
 - The final outcome and an observable done condition.
 - What must be inspected or retrieved before a claim, stated as a rule about a class of
