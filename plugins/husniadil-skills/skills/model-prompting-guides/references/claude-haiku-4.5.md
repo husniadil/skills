@@ -13,7 +13,9 @@ heuristic and check it against your own evals.
 
 - Context window 200K tokens. Maximum output 64K tokens.
 - Thinking is off unless the request enables it: `thinking: {"type": "enabled", "budget_tokens": N}`.
-  `budget_tokens` must be at least 1024 and less than `max_tokens`.
+  `budget_tokens` must be at least 1024 and less than `max_tokens`. Claude Code enables it
+  for a Haiku 4.5 subagent by default, with a budget of 31,999 tokens (observed on 2.1.322,
+  with user settings excluded). `alwaysThinkingEnabled: false` turns it off.
 - `effort` is not supported. A request that sends it returns an error. Thinking depth comes
   from the budget.
 - Interleaved thinking is not supported. The model does not think between tool calls.
