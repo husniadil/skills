@@ -2,16 +2,21 @@
 
 Where [gpt-5.6.md](../../plugins/husniadil-skills/skills/model-prompting-guides/references/gpt-5.6.md) comes from and how it was checked. Agents that read the guide do not load this file.
 
-Last cross-checked: 2026-11-13. Every `text` block was checked by script against the Markdown of the pages below (fetched by appending `.md` to each URL), with curly quotes, dashes and ellipses normalized to ASCII and whitespace collapsed. All blocks match except the delegation template, which is this skill's own heuristic.
+Last cross-checked: 2026-11-21. Every `text` block was checked by script against the Markdown of the pages below (fetched by appending `.md` to each URL), with curly quotes, dashes and ellipses normalized to ASCII and whitespace collapsed. All blocks match except the delegation template, which is this skill's own heuristic.
 
-Sources, all read on 2026-11-13:
+Sources, read on 2026-11-13 unless noted:
 
 - Prompting guidance for GPT-5.6 Sol (https://developers.openai.com/api/docs/guides/prompt-guidance-gpt-5p6),
-  which covers the whole family: source of every block except the Codex lines, the 10-15%
+  which covers the whole family, re-read on 2026-11-21, when the direct-answer block was
+  added: source of every block except the Codex lines, the 10-15%
   and 41-66% figures, the Avoid list, and the effort guidance.
 - Codex CLI default instructions (openai/codex,
   `codex-rs/protocol/src/prompts/base_instructions/default.md`, last changed 2026-06-23):
-  source of the coding lines, each checked line by line.
+  source of the coding lines, each checked line by line. Re-checked on 2026-11-21: the file
+  has not changed since.
+- Using GPT-5.6 (https://developers.openai.com/api/docs/guides/latest-model/gpt-5.6), read on
+  2026-11-21: keeping `none` as the latency baseline while testing `low`, and comparing
+  `max` with `xhigh`.
 - GPT-5.6 Sol, Terra and Luna model pages (https://developers.openai.com/api/docs/models/gpt-5.6-sol and siblings):
   effort values and the `gpt-5.6` alias.
 - Reasoning models (https://developers.openai.com/api/docs/guides/reasoning): `reasoning.context` defaulting to

@@ -168,6 +168,15 @@ Keep all required facts, decisions, caveats, and next steps. Trim introductions,
 repetition, generic reassurance, and optional background first.
 ```
 
+For an answer written straight to a user, name the writing choices rather than a tone
+label:
+
+```text
+State the answer directly. If the user reports a problem, acknowledge the
+specific issue before giving the next step. Use reassurance only when it is
+relevant. Omit generic praise and unnecessary sign-offs.
+```
+
 ### Subagents
 
 With the Multi-agent beta (`OpenAI-Beta: responses_multi_agent=v1`), the root agent can
@@ -220,10 +229,13 @@ calls for approval, semantic judgment, citations, and final validation.
 
 Reasoning levels are `none`, `low`, `medium` (default), `high`, `xhigh`, `max`.
 
+- `none`, where a prompt already runs at it, as the latency baseline. Also test `low` when
+  the workflow benefits from reasoning or tool use.
 - `low` for latency-sensitive work when it keeps quality.
 - `medium` as the balanced starting point.
 - `high` or `xhigh` only when evals show a meaningful gain.
-- `max` for the hardest quality-first work, not as a default.
+- `max` for the hardest quality-first work, not as a default. Compare it with `xhigh` to
+  find the quality, latency, and cost tradeoff.
 
 Before raising effort, check whether the prompt is missing a success criterion, a
 dependency rule, a tool-routing rule, or a verification loop. When moving a prompt from
