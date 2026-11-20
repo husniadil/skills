@@ -18,8 +18,8 @@ What the API does on this model, which decides what a prompt can rely on:
 - Tool calling needs the Responses API. Chat Completions takes requests without tools.
 - With effort above `none`, `temperature`, `top_p`, and `top_logprobs` are not supported.
 - Input is text and images. Audio and video are not supported.
-- OpenAI lists the Responses API's Multi-agent beta for GPT-6.1 Sol and the GPT-5.6
-  models, not for Terra. Subagents go through your own harness.
+- OpenAI lists the Responses API's Multi-agent beta for GPT-6.2 Astra and Sol, GPT-6.1 Sol
+  and the GPT-5.6 models, not for Terra. Subagents go through your own harness.
 - Cached input is billed at 5% of the input rate. 12-hour cache retention is available
   for requests hours apart.
 - Mid-turn steering over a WebSocket connection and async tool calling are available.

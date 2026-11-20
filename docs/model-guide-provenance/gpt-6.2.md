@@ -6,8 +6,9 @@ Last cross-checked: 2026-11-20. Every `text` block was checked by script against
 
 OpenAI released GPT-6.2 Astra and GPT-6.2 Sol on 2026-11-17 and publishes one prompting guide for both, so one guide covers the two. Sources, all read on 2026-11-20:
 
-- Using GPT-6.2 (https://developers.openai.com/api/docs/guides/latest-model, also served at
-  `/api/docs/guides/latest-model/gpt-6.2-astra.md`): source of every block except the two
+- Using GPT-6.2 (https://developers.openai.com/api/docs/guides/latest-model/gpt-6.2-astra,
+  which `guides/latest-model` also served on 2026-11-20 and will stop serving once a newer
+  model replaces it): source of every block except the two
   Multi-agent developer messages (writing style, external audience, self-contained final
   answer, task completion, persistence, assumptions, coding style, frontend design), the
   Astra behavior notes, the async question tool, the reference-image advice, prefix edits,

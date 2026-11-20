@@ -2,12 +2,12 @@
 
 Where [gpt-6.1-sol.md](../../plugins/husniadil-skills/skills/model-prompting-guides/references/gpt-6.1-sol.md) comes from and how it was checked. Agents that read the guide do not load this file.
 
-Last cross-checked: 2026-11-13. Every `text` block was checked by script against the Markdown of the pages below (fetched by appending `.md` to each URL), with curly quotes, dashes and ellipses normalized to ASCII and whitespace collapsed. All blocks match except the delegation template, which is this skill's own heuristic.
+Last cross-checked: 2026-11-20. Every `text` block was checked by script against the Markdown of the pages below (fetched by appending `.md` to each URL), with curly quotes, dashes and ellipses normalized to ASCII and whitespace collapsed. All blocks match except the delegation template, which is this skill's own heuristic.
 
 OpenAI publishes no prompting guidance written for GPT-6.1 Sol. Sources, read on 2026-11-13
 unless noted:
 
-- Using GPT-6 (https://developers.openai.com/api/docs/guides/latest-model): source of every family block
+- Using GPT-6 (https://developers.openai.com/api/docs/guides/latest-model/gpt-6-astra): source of every family block
   (initiative and follow-through, instruction following, writing style, subagent delegation,
   testing), the reasoning-effort, tool-calling and sampling-parameter rules, and the
   `configuration_update` advice. It says its prompts address behavior observed with GPT-6
@@ -23,10 +23,14 @@ unless noted:
 - Mid-turn steering (https://developers.openai.com/api/docs/guides/steering) and Async tool calling
   (https://developers.openai.com/api/docs/guides/async-tool-calling): availability (GPT-6 family; GPT-6 Astra and
   later) and the instruction to continue independent work and wait before a dependent step.
-- Multi-agent (https://developers.openai.com/api/docs/guides/responses-multi-agent): the model list (GPT-6.1 Sol and
+- Multi-agent (https://developers.openai.com/api/docs/guides/responses-multi-agent): the model list (GPT-6.2 Astra and Sol, GPT-6.1 Sol and
   all GPT-5.6 models).
   Also the source of the developer-message examples, when to prefer one agent,
-  `max_concurrent_subagents`, and the limitations under Multi-agent.
+  `max_concurrent_subagents`, and the limitations under Multi-agent (compaction,
+  `reasoning.summary`, `max_tool_calls`). Since 2026-11-20 that list no longer names the
+  other two limits the guide states: `configuration_update` is limited to standard,
+  single-agent mode on the Reasoning models page, and the rule against combining async
+  tools with parallel tool calls in Multi-agent mode is on the Async tool calling page.
 - GPT-6.1 Sol model page (https://developers.openai.com/api/docs/models/gpt-6.1-sol): effort values, the
   `medium` default, tool calling only through Responses, and the 5% cached-input rate.
 - Introducing GPT-6.1 Sol (openai.com/index/introducing-gpt-6-1-sol/), read on 2026-10-03:
@@ -37,3 +41,7 @@ unless noted:
   same reason.
 
 The Always include, Avoid and failure-mode lists are this skill's synthesis of these sources, and the delegation template is its own heuristic.
+
+On 2026-11-20 `guides/latest-model` began serving Using GPT-6.2. Using GPT-6 is still served,
+unchanged, at `guides/latest-model/gpt-6-astra`, and every family block was re-checked
+against it there. Cite the versioned URL: the unversioned one follows the newest model.

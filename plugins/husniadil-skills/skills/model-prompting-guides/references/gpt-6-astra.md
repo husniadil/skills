@@ -19,8 +19,8 @@ What the API does on this model, which decides what a prompt can rely on:
   earlier actions.
 - Async tool calling (`async: true` on a function or custom tool) lets the model keep
   working while your application runs a slow tool.
-- OpenAI lists the Responses API's Multi-agent beta for GPT-6.1 Sol and the GPT-5.6 models,
-  not for Astra. Subagents go through your own harness.
+- OpenAI lists the Responses API's Multi-agent beta for GPT-6.2 Astra and Sol, GPT-6.1 Sol
+  and the GPT-5.6 models, not for GPT-6 Astra. Subagents go through your own harness.
 
 ## Always include
 

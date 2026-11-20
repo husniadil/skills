@@ -23,8 +23,8 @@ What the API does on these models, which decides what a prompt can rely on:
 - With effort above `none`, `temperature`, `top_p`, and `top_logprobs` are not supported.
 - Mid-turn steering over a WebSocket connection and async tool calling are available, as
   on Astra.
-- OpenAI lists the Responses API's Multi-agent beta for GPT-6.1 Sol and the GPT-5.6
-  models, not for Sol or Luna. Subagents go through your own harness.
+- OpenAI lists the Responses API's Multi-agent beta for GPT-6.2 Astra and Sol, GPT-6.1 Sol
+  and the GPT-5.6 models, not for GPT-6 Sol or Luna. Subagents go through your own harness.
 
 ## Always include
 
