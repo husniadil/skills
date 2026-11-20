@@ -2,7 +2,7 @@
 
 Where [gpt-6.2.md](../../plugins/husniadil-skills/skills/model-prompting-guides/references/gpt-6.2.md) comes from and how it was checked. Agents that read the guide do not load this file.
 
-Last cross-checked: 2026-11-20. Every `text` block was checked by script against the Markdown of the pages below (fetched by appending `.md` to each URL), with curly quotes, dashes and ellipses normalized to ASCII and whitespace collapsed. All blocks match except the delegation template, which is this skill's own heuristic.
+Last cross-checked: 2026-11-21. Every `text` block was checked by script against the Markdown of the pages below (fetched by appending `.md` to each URL), with curly quotes, dashes and ellipses normalized to ASCII and whitespace collapsed. All blocks match except the delegation template, which is this skill's own heuristic.
 
 OpenAI released GPT-6.2 Astra and GPT-6.2 Sol on 2026-11-17 and publishes one prompting guide for both, so one guide covers the two. Sources, all read on 2026-11-20:
 
@@ -33,10 +33,12 @@ OpenAI released GPT-6.2 Astra and GPT-6.2 Sol on 2026-11-17 and publishes one pr
   list (GPT-6.2 Astra, GPT-6.2 Sol, GPT-6.1 Sol and all GPT-5.6 models), the
   developer-message examples, when to prefer one agent, `max_concurrent_subagents`, and the
   limitations.
-- Async tool calling (https://developers.openai.com/api/docs/guides/async-tool-calling):
-  "supported by GPT-6 Astra and later models", the instruction to continue independent work
-  and wait before a dependent step, and no async tools with parallel tool calls under
-  Multi-agent.
+- Async tool calling (https://developers.openai.com/api/docs/guides/async-tool-calling,
+  re-read on 2026-11-21): "supported by GPT-6 Astra and later models", no async tools with
+  parallel tool calls under Multi-agent, and the Async tools section: results returned on
+  the original `call_id`, a `task_handle` with a wait tool of your own, results before the
+  wait's status, and the instruction to continue independent work and wait before a step
+  that requires a user's answer.
 - Mid-turn steering (https://developers.openai.com/api/docs/guides/steering): available with
   "the GPT-6 model family", GPT-5.6 and earlier excluded. Its examples use `gpt-6-astra` and
   it does not name GPT-6.2, so the guide says so rather than claiming support.

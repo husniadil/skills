@@ -233,8 +233,18 @@ asking for a summary on the final turn.
 
 ### Async tools
 
-When a tool is marked `async`, tell the model to continue independent work and to wait
-before a step that needs the result.
+A tool marked `async` lets the model keep working after it calls the tool. Your application
+still runs the tool and returns the result in a later request, on the call's original
+`call_id`.
+
+- To let the model choose when to wait, give each async tool a `task_handle` argument and
+  add a synchronous wait tool of your own, such as `wait_for_tasks`. Use the wait only when
+  the model's next step depends on a result that has not arrived.
+- When a wait is pending, return each newly completed result on its own `call_id` before
+  the wait call's status, so the model has the results when it resumes.
+- For an async question to the user, tell the model to continue independent work and to
+  wait before a step that requires the answer. If the question is dismissed or times out,
+  return an explicit no-answer result.
 
 ## Avoid
 
