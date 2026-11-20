@@ -7,7 +7,9 @@ Last cross-checked: 2026-11-21. Every `text` block was checked by script against
 OpenAI publishes no prompting guidance written for Sol or Luna. Sources, read on 2026-11-13
 unless noted:
 
-- Using GPT-6 (https://developers.openai.com/api/docs/guides/latest-model/gpt-6-astra): source of every family block
+- Using GPT-6 (https://developers.openai.com/api/docs/guides/latest-model/gpt-6-astra, re-read on
+  2026-11-21, when the technical-reader and stock-phrases blocks and `logprobs` were added):
+  source of every family block
   (initiative and follow-through, instruction following, writing style, subagent delegation,
   testing), the reasoning-effort, tool-calling and sampling-parameter rules, and the
   `configuration_update` advice. It says its prompts address behavior observed with GPT-6
@@ -19,7 +21,9 @@ unless noted:
 - Reasoning models (https://developers.openai.com/api/docs/guides/reasoning): effort support and defaults, the
   effort table behind "use `xhigh` only when evals show a clear benefit", `reasoning.mode`,
   `reasoning.context`, and `configuration_update` in standard, single-agent mode.
-- Model selection (https://developers.openai.com/api/docs/guides/model-selection): the per-model effort suggestions.
+- Model selection (https://developers.openai.com/api/docs/guides/model-selection, re-read on
+  2026-11-21): the Luna effort suggestions, reworded to the page's current `low` and `xhigh`
+  entries.
 - Mid-turn steering (https://developers.openai.com/api/docs/guides/steering) and Async tool calling
   (https://developers.openai.com/api/docs/guides/async-tool-calling, re-read on 2026-11-21): availability (GPT-6 family; GPT-6 Astra and
   later). The async page is also the source of the Async tools section: results returned

@@ -2,7 +2,7 @@
 
 Rules for writing a task prompt for an agent or subagent running GPT-6 Sol (`gpt-6-sol`)
 or GPT-6 Luna (`gpt-6-luna`). The two share one API surface, so every rule here applies
-to both. GPT-6.1 Sol is the newer Sol and has its own guide.
+to both. GPT-6.1 Sol and GPT-6.2 Sol are newer Sols, each with its own guide.
 
 The blocks below are OpenAI's GPT-6 family guidance, written from GPT-6 Astra's behavior.
 Evaluate them on Sol or Luna. OpenAI notes that guidance which helps Sol or Luna may
@@ -20,7 +20,8 @@ What the API does on these models, which decides what a prompt can rely on:
 - `reasoning.effort` takes `none`, `low`, `medium` (default), `high`, `xhigh`, and `max`.
 - Built-in tools and function calling need the Responses API. Chat Completions supports
   function calling only with `reasoning_effort: "none"`.
-- With effort above `none`, `temperature`, `top_p`, and `top_logprobs` are not supported.
+- With effort above `none`, `temperature`, `top_p`, `top_logprobs`, and `logprobs` are not
+  supported.
 - Mid-turn steering over a WebSocket connection and async tool calling are available, as
   on Astra.
 - OpenAI lists the Responses API's Multi-agent beta for GPT-6.2 Astra and Sol, GPT-6.1 Sol
@@ -128,6 +129,31 @@ and detail the reader needs. Let each sentence build on what came before. Develo
 points that matter and provide enough support to be useful.
 ```
 
+For a technical reader:
+
+```text
+Use plain language over jargon, and reference technical details only to the degree that it
+helps illustrate an idea or your work to the user. Communicate complex concepts in a clear
+and cohesive manner, and calibrate your writing to the level of background knowledge
+assumed from the user's prompt and context.
+```
+
+To cut stock phrases:
+
+```text
+Avoid using slop words or phrases like "Bottom Line:" in conclusions, "delve," "foster,"
+"leverage," "it's worth noting," "importantly," "Question? Answer." or "This isn't about X.
+It's about Y.", "genuinely" or hyphenated compound descriptions and adjectives. Do not use
+concluding summary statements such as "In short:..", "The simplest mental model is:...".
+
+State the intended action directly. Avoid adding what you won't do, what will remain
+unchanged, or how you'll separate or categorize results. Do not use contrastive framing such
+as "X, not Y" that introduces an unprompted alternative that the user didn't ask about.
+Avoid invented compound labels like "exact-head checks" and "editorial-row layouts", vague
+qualifiers, and canned transitions; use plain verbs and prepositions to state the actual
+relationship directly.
+```
+
 ### Subagents
 
 If the subagent can spawn its own through your harness:
@@ -173,16 +199,16 @@ still runs the tool and returns the result in a later request, on the call's ori
 - Long or overlapping skill descriptions that make the model load a skill the task does
   not need.
 - `minimal` effort, which these models do not list.
-- `temperature`, `top_p`, and `top_logprobs` when effort is not `none`.
+- `temperature`, `top_p`, `top_logprobs`, and `logprobs` when effort is not `none`.
 
 ## Effort
 
 Reasoning levels are `none`, `low`, `medium` (default), `high`, `xhigh`, `max`. A request
 moving from `minimal` starts at `low`. For Luna, OpenAI's model selection guide suggests:
 
-- `low`: fine-grained edits, well-scoped problem-solving, and simple data extraction.
-- `xhigh`: finding current context across multiple apps, prioritizing work, and solving
-  problems with clear constraints.
+- `low`: small edits to files and extracting fields when the expected result is clear.
+- `xhigh`: finding updates across apps, prioritizing follow-ups, and solving problems with
+  clear constraints.
 
 Use `xhigh` only when evals show a clear benefit. `reasoning.mode: "pro"` in the Responses
 API gives more model work on difficult tasks at higher latency, independent of effort.

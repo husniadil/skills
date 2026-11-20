@@ -7,7 +7,9 @@ Last cross-checked: 2026-11-21. Every `text` block was checked by script against
 OpenAI publishes no prompting guidance written for GPT-6.1 Terra. Sources, read on
 2026-11-13 unless noted:
 
-- Using GPT-6 (https://developers.openai.com/api/docs/guides/latest-model/gpt-6-astra): source of every family block
+- Using GPT-6 (https://developers.openai.com/api/docs/guides/latest-model/gpt-6-astra, re-read on
+  2026-11-21, when the technical-reader and stock-phrases blocks and `logprobs` were added):
+  source of every family block, and of comparing with GPT-5.6 Terra on representative images
   (initiative and follow-through, instruction following, writing style, subagent delegation,
   testing), the reasoning-effort, tool-calling and sampling-parameter rules, and the
   `configuration_update` advice. It says its prompts address behavior observed with GPT-6
@@ -19,7 +21,12 @@ OpenAI publishes no prompting guidance written for GPT-6.1 Terra. Sources, read 
 - Reasoning models (https://developers.openai.com/api/docs/guides/reasoning): effort support and defaults, the
   effort table behind "use `xhigh` only when evals show a clear benefit", `reasoning.mode`,
   `reasoning.context`, and `configuration_update` in standard, single-agent mode.
-- Model selection (https://developers.openai.com/api/docs/guides/model-selection): the per-model effort suggestions.
+- Model selection (https://developers.openai.com/api/docs/guides/model-selection, re-read on
+  2026-11-21): what Terra is suggested for (visual information, and at `medium` desktop apps,
+  records and focused fixes you can verify), and comparing on the same inputs. On that date
+  it no longer said Terra suits concise writing from supplied material, computer-use tasks
+  with a defined outcome and scoped code fixes, nor how to judge writing and computer-use
+  results, so the guide dropped those, with the writing-task checklist that came with them.
 - Mid-turn steering (https://developers.openai.com/api/docs/guides/steering) and Async tool calling
   (https://developers.openai.com/api/docs/guides/async-tool-calling, re-read on 2026-11-21): availability (GPT-6 family; GPT-6 Astra and
   later). The async page is also the source of the Async tools section: results returned
@@ -28,8 +35,6 @@ OpenAI publishes no prompting guidance written for GPT-6.1 Terra. Sources, read 
   step that requires a user's answer.
 - Multi-agent (https://developers.openai.com/api/docs/guides/responses-multi-agent): the model list (GPT-6.2 Astra and Sol, GPT-6.1 Sol and
   all GPT-5.6 models).
-- Model selection is also the source of when to consider Terra and how to compare it with
-  GPT-6.1 Sol.
 - GPT-6.1 Terra model page (https://developers.openai.com/api/docs/models/gpt-6.1-terra): the description, effort
   values, the `medium` default, modalities, cached-input rate, and 12-hour cache retention.
 

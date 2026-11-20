@@ -20,7 +20,7 @@ What the API does on this model, which decides what a prompt can rely on:
 - `reasoning.effort` takes `low`, `medium` (default), `high`, `xhigh`, and `max`. `none` and
   `minimal` are not supported. A request moving from either starts at `low`.
 - Tool calling needs the Responses API. Chat Completions takes requests without tools.
-- `temperature`, `top_p`, and `top_logprobs` are not supported.
+- `temperature`, `top_p`, `top_logprobs`, and `logprobs` are not supported.
 - The Responses API's Multi-agent beta is available (see Subagents). OpenAI lists it for
   GPT-6.2 Astra and Sol, GPT-6.1 Sol and the GPT-5.6 models.
 - `reasoning.context: "all_turns"` lets the model reuse compatible reasoning from earlier
@@ -174,6 +174,31 @@ and detail the reader needs. Let each sentence build on what came before. Develo
 points that matter and provide enough support to be useful.
 ```
 
+For a technical reader:
+
+```text
+Use plain language over jargon, and reference technical details only to the degree that it
+helps illustrate an idea or your work to the user. Communicate complex concepts in a clear
+and cohesive manner, and calibrate your writing to the level of background knowledge
+assumed from the user's prompt and context.
+```
+
+To cut stock phrases:
+
+```text
+Avoid using slop words or phrases like "Bottom Line:" in conclusions, "delve," "foster,"
+"leverage," "it's worth noting," "importantly," "Question? Answer." or "This isn't about X.
+It's about Y.", "genuinely" or hyphenated compound descriptions and adjectives. Do not use
+concluding summary statements such as "In short:..", "The simplest mental model is:...".
+
+State the intended action directly. Avoid adding what you won't do, what will remain
+unchanged, or how you'll separate or categorize results. Do not use contrastive framing such
+as "X, not Y" that introduces an unprompted alternative that the user didn't ask about.
+Avoid invented compound labels like "exact-head checks" and "editorial-row layouts", vague
+qualifiers, and canned transitions; use plain verbs and prepositions to state the actual
+relationship directly.
+```
+
 ### Async tools
 
 A tool marked `async` lets the model keep working after it calls the tool. Your application
@@ -196,19 +221,13 @@ still runs the tool and returns the result in a later request, on the call's ori
 - Requiring a stack of documents before every edit. Say when each one is relevant.
 - Long or overlapping skill descriptions that make the model load a skill the task does
   not need.
-- `none` or `minimal` effort, `temperature`, `top_p`, and `top_logprobs`.
+- `none` or `minimal` effort, `temperature`, `top_p`, `top_logprobs`, and `logprobs`.
 
 ## Effort
 
-Reasoning levels are `low`, `medium` (default), `high`, `xhigh`, `max`. OpenAI's model
-selection guide suggests:
-
-- `medium`: complex technical work and coordinated deliverables you expect to revise.
-- `xhigh`: polished deliverables, connected visual systems, and decisions built from
-  conflicting evidence.
-
-Use `xhigh` only when evals show a clear benefit. `reasoning.mode: "pro"` in the Responses
-API gives more model work on difficult tasks at higher latency, independent of effort.
+Reasoning levels are `low`, `medium` (default), `high`, `xhigh`, `max`. Use `xhigh` only
+when evals show a clear benefit. `reasoning.mode: "pro"` in the Responses API gives more
+model work on difficult tasks at higher latency, independent of effort.
 
 To change effort between responses in a single-agent request, add a `configuration_update`
 input item and leave request-level `reasoning.effort` unchanged, so the prompt prefix stays

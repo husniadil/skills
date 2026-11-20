@@ -7,16 +7,16 @@ The blocks below are OpenAI's GPT-6 family guidance, written from GPT-6 Astra's 
 Evaluate them on GPT-6.1 Terra.
 
 OpenAI describes Terra as a fast, efficient model for visual reasoning, precise computer
-use, and clear, natural writing. It suggests Terra for concise writing based on supplied
-material, computer-use tasks with a defined outcome, and scoped code fixes, given clear
-inputs, requirements, and a way to verify the result, such as checking saved records or
-running regression tests.
+use, and clear, natural writing. Its model selection guide suggests Terra for interpreting
+visual information, such as charts and screenshots, and at `medium` for navigating desktop
+apps, updating records, and making focused fixes you can verify.
 
 What the API does on this model, which decides what a prompt can rely on:
 
 - `reasoning.effort` takes `none`, `low`, `medium` (default), `high`, `xhigh`, and `max`.
 - Tool calling needs the Responses API. Chat Completions takes requests without tools.
-- With effort above `none`, `temperature`, `top_p`, and `top_logprobs` are not supported.
+- With effort above `none`, `temperature`, `top_p`, `top_logprobs`, and `logprobs` are not
+  supported.
 - Input is text and images. Audio and video are not supported.
 - OpenAI lists the Responses API's Multi-agent beta for GPT-6.2 Astra and Sol, GPT-6.1 Sol
   and the GPT-5.6 models, not for Terra. Subagents go through your own harness.
@@ -99,8 +99,7 @@ explicit skill requirements from your interpretation of guidelines.
 
 ### Writing
 
-For writing tasks, state the audience and voice, the facts and qualifications that must
-survive, and the length. When the reader needs prose with less formatting:
+When the reader needs prose with less formatting:
 
 ```text
 Default to using clear, concise paragraphs, each developing one main idea. Use lists only
@@ -112,6 +111,31 @@ direct statements.
 Make sure to state the main point clearly and early, then develop it with the explanation
 and detail the reader needs. Let each sentence build on what came before. Develop the
 points that matter and provide enough support to be useful.
+```
+
+For a technical reader:
+
+```text
+Use plain language over jargon, and reference technical details only to the degree that it
+helps illustrate an idea or your work to the user. Communicate complex concepts in a clear
+and cohesive manner, and calibrate your writing to the level of background knowledge
+assumed from the user's prompt and context.
+```
+
+To cut stock phrases:
+
+```text
+Avoid using slop words or phrases like "Bottom Line:" in conclusions, "delve," "foster,"
+"leverage," "it's worth noting," "importantly," "Question? Answer." or "This isn't about X.
+It's about Y.", "genuinely" or hyphenated compound descriptions and adjectives. Do not use
+concluding summary statements such as "In short:..", "The simplest mental model is:...".
+
+State the intended action directly. Avoid adding what you won't do, what will remain
+unchanged, or how you'll separate or categorize results. Do not use contrastive framing such
+as "X, not Y" that introduces an unprompted alternative that the user didn't ask about.
+Avoid invented compound labels like "exact-head checks" and "editorial-row layouts", vague
+qualifiers, and canned transitions; use plain verbs and prepositions to state the actual
+relationship directly.
 ```
 
 ### Testing on small changes
@@ -164,7 +188,7 @@ still runs the tool and returns the result in a later request, on the call's ori
 - A task with no way to check the result. Terra works best when the result can be
   verified.
 - `minimal` effort, which the GPT-6 family does not list.
-- `temperature`, `top_p`, and `top_logprobs` when effort is not `none`.
+- `temperature`, `top_p`, `top_logprobs`, and `logprobs` when effort is not `none`.
 
 ## Effort
 
@@ -172,10 +196,8 @@ Reasoning levels are `none`, `low`, `medium` (default), `high`, `xhigh`, `max`. 
 moving from `minimal` starts at `low`. Use `xhigh` only when evals show a clear benefit.
 
 To choose between Terra and GPT-6.1 Sol, or between effort levels, compare on the same
-inputs at the same effort. For writing, judge audience fit, voice, and useful detail as
-well as accuracy and length. For computer use, check the saved result and the accuracy of
-the completion report. Moving from GPT-5.6 Terra, compare both models on representative
-images and workflows at the same effort.
+inputs at the same effort. Moving from GPT-5.6 Terra, compare both models on
+representative images and workflows at the same effort.
 
 To change effort between responses, add a `configuration_update` input item and leave
 request-level `reasoning.effort` unchanged, so the prompt prefix stays cached.
