@@ -2,7 +2,7 @@
 
 Where [gpt-6.1-terra.md](../../plugins/husniadil-skills/skills/model-prompting-guides/references/gpt-6.1-terra.md) comes from and how it was checked. Agents that read the guide do not load this file.
 
-Last cross-checked: 2026-11-20. Every `text` block was checked by script against the Markdown of the pages below (fetched by appending `.md` to each URL), with curly quotes, dashes and ellipses normalized to ASCII and whitespace collapsed. All blocks match except the delegation template, which is this skill's own heuristic.
+Last cross-checked: 2026-11-21. Every `text` block was checked by script against the Markdown of the pages below (fetched by appending `.md` to each URL), with curly quotes, dashes and ellipses normalized to ASCII and whitespace collapsed. All blocks match except the delegation template, which is this skill's own heuristic.
 
 OpenAI publishes no prompting guidance written for GPT-6.1 Terra. Sources, read on
 2026-11-13 unless noted:
@@ -21,8 +21,11 @@ OpenAI publishes no prompting guidance written for GPT-6.1 Terra. Sources, read 
   `reasoning.context`, and `configuration_update` in standard, single-agent mode.
 - Model selection (https://developers.openai.com/api/docs/guides/model-selection): the per-model effort suggestions.
 - Mid-turn steering (https://developers.openai.com/api/docs/guides/steering) and Async tool calling
-  (https://developers.openai.com/api/docs/guides/async-tool-calling): availability (GPT-6 family; GPT-6 Astra and
-  later) and the instruction to continue independent work and wait before a dependent step.
+  (https://developers.openai.com/api/docs/guides/async-tool-calling, re-read on 2026-11-21): availability (GPT-6 family; GPT-6 Astra and
+  later). The async page is also the source of the Async tools section: results returned
+  on the original `call_id`, a `task_handle` with a wait tool of your own, results before
+  the wait's status, and the instruction to continue independent work and wait before a
+  step that requires a user's answer.
 - Multi-agent (https://developers.openai.com/api/docs/guides/responses-multi-agent): the model list (GPT-6.2 Astra and Sol, GPT-6.1 Sol and
   all GPT-5.6 models).
 - Model selection is also the source of when to consider Terra and how to compare it with
