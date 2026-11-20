@@ -13,7 +13,7 @@ What the API does on this model, which decides what a prompt can rely on:
 - `reasoning.effort` takes `low`, `medium`, `high`, `xhigh`, and `max`. `none` returns a
   400.
 - Tool calling needs the Responses API. Chat Completions takes requests without tools.
-- `temperature`, `top_p`, and `top_logprobs` are not supported.
+- `temperature`, `top_p`, `top_logprobs`, and `logprobs` are not supported.
 - Mid-turn steering, over a WebSocket connection to the Responses API, lets a correction
   reach the model while it works. It does not cancel tools already started or undo
   earlier actions.
@@ -149,6 +149,22 @@ and cohesive manner, and calibrate your writing to the level of background knowl
 assumed from the user's prompt and context.
 ```
 
+To cut stock phrases:
+
+```text
+Avoid using slop words or phrases like "Bottom Line:" in conclusions, "delve," "foster,"
+"leverage," "it's worth noting," "importantly," "Question? Answer." or "This isn't about X.
+It's about Y.", "genuinely" or hyphenated compound descriptions and adjectives. Do not use
+concluding summary statements such as "In short:..", "The simplest mental model is:...".
+
+State the intended action directly. Avoid adding what you won't do, what will remain
+unchanged, or how you'll separate or categorize results. Do not use contrastive framing such
+as "X, not Y" that introduces an unprompted alternative that the user didn't ask about.
+Avoid invented compound labels like "exact-head checks" and "editorial-row layouts", vague
+qualifiers, and canned transitions; use plain verbs and prepositions to state the actual
+relationship directly.
+```
+
 ### Subagents
 
 If the subagent can spawn its own through your harness, Astra may delegate less often than
@@ -193,20 +209,14 @@ still runs the tool and returns the result in a later request, on the call's ori
 - Long or overlapping skill descriptions that make the model load a skill the task does
   not need.
 - Rigid step-by-step recipes. Overly specific guidance can hinder results on Astra.
-- `none` effort, `temperature`, `top_p`, and `top_logprobs`.
+- `none` effort, `temperature`, `top_p`, `top_logprobs`, and `logprobs`.
 
 ## Effort
 
 Reasoning levels are `low`, `medium`, `high`, `xhigh`, `max`. A request moving from `none`
-or `minimal` starts at `low`. OpenAI's model selection guide suggests:
-
-- `low`: concise writing and content adaptation that preserve facts and nuance.
-- `medium`: ambitious projects that need broad context, reliable interactions, and
-  complete results.
-- `xhigh`: demanding analysis and complex deliverables with exacting requirements.
-
-Use `xhigh` only when evals show a clear benefit. `reasoning.mode: "pro"` in the Responses
-API gives more model work on difficult tasks at higher latency, independent of effort.
+or `minimal` starts at `low`. Use `xhigh` only when evals show a clear benefit.
+`reasoning.mode: "pro"` in the Responses API gives more model work on difficult tasks at
+higher latency, independent of effort.
 
 To change effort between responses, add a `configuration_update` input item and leave
 request-level `reasoning.effort` unchanged, so the prompt prefix stays cached.

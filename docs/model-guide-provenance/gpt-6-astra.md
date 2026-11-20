@@ -4,11 +4,13 @@ Where [gpt-6-astra.md](../../plugins/husniadil-skills/skills/model-prompting-gui
 
 Last cross-checked: 2026-11-21. Every `text` block was checked by script against the Markdown of the pages below (fetched by appending `.md` to each URL), with curly quotes, dashes and ellipses normalized to ASCII and whitespace collapsed. All blocks match except the delegation template, which is this skill's own heuristic.
 
-Sources, all read on 2026-11-13:
+Sources, read on 2026-11-13 unless noted:
 
-- Using GPT-6 (https://developers.openai.com/api/docs/guides/latest-model/gpt-6-astra): source of every family block
-  (initiative and follow-through, instruction following, writing style, subagent delegation,
-  testing), the reasoning-effort, tool-calling and sampling-parameter rules, and the
+- Using GPT-6 (https://developers.openai.com/api/docs/guides/latest-model/gpt-6-astra, re-read on
+  2026-11-21): source of every family block (initiative and follow-through, instruction
+  following, writing style, the stock-phrases block added on 2026-11-21, subagent delegation,
+  testing), the reasoning-effort, tool-calling and sampling-parameter rules (`logprobs`
+  added on 2026-11-21), and the
   `configuration_update` advice. It says its prompts address behavior observed with GPT-6
   Astra and should be evaluated on the chosen model.
 - Rethinking skills and prompts for GPT-6 Astra
@@ -18,7 +20,9 @@ Sources, all read on 2026-11-13:
 - Reasoning models (https://developers.openai.com/api/docs/guides/reasoning): effort support and defaults, the
   effort table behind "use `xhigh` only when evals show a clear benefit", `reasoning.mode`,
   `reasoning.context`, and `configuration_update` in standard, single-agent mode.
-- Model selection (https://developers.openai.com/api/docs/guides/model-selection): the per-model effort suggestions.
+- Model selection (https://developers.openai.com/api/docs/guides/model-selection): no longer cited. On
+  2026-11-21 it covered GPT-6.2 Astra and had no entry for GPT-6 Astra, so the per-level
+  effort suggestions taken from it were dropped.
 - Mid-turn steering (https://developers.openai.com/api/docs/guides/steering) and Async tool calling
   (https://developers.openai.com/api/docs/guides/async-tool-calling, re-read on 2026-11-21): availability (GPT-6 family; GPT-6 Astra and
   later). The async page is also the source of the Async tools section: results returned
