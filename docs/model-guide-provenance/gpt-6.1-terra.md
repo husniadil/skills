@@ -39,8 +39,10 @@ OpenAI publishes no prompting guidance written for GPT-6.1 Terra. Sources, read 
   values, the `medium` default, modalities, cached-input rate, and 12-hour cache retention.
 
 The 2026-11-13 rewrite dropped "start with `medium` and raise it only if the gain is worth
-it", which no current developers.openai.com page carries, and the Always include items now
-follow the model selection guide's advice for Terra.
+it", which no current developers.openai.com page carries, and reworked the Always include
+items to the model selection guide's advice for Terra at the time. On 2026-11-21 that
+advice was gone, so the completion-report item in Always include and its failure mode were
+dropped. The remaining items are this skill's synthesis.
 
 The Always include, Avoid and failure-mode lists are this skill's synthesis of these sources, and the delegation template is its own heuristic.
 

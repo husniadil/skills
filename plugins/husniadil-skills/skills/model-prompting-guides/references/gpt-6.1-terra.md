@@ -30,8 +30,6 @@ What the API does on this model, which decides what a prompt can rely on:
 - The outcome and what done includes. For computer use, that the change is saved and
   unrelated data is preserved.
 - Decision boundaries: what it can do without asking and what needs approval.
-- What a useful response looks like. For a completion report, that it must match what was
-  actually saved.
 
 ```text
 You should infer the user's intent and task scope from the instructions and prior
@@ -226,8 +224,6 @@ Return:
 - Function calls through Chat Completions: move the request to the Responses API.
 - Quality drops against GPT-5.6 Terra or GPT-6.1 Sol: compare at the same effort on
   representative inputs before raising effort.
-- A completion report that does not match the saved result: require the recheck in Done
-  when, and ask for the verified state in the report.
 - Asks before starting: add the autonomy block, and name what it may do without asking.
 - Stops at a plan or a partial result: add the follow-through block, and spell out what
   done includes.
